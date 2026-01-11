@@ -1,6 +1,6 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getAllArticles, getArticleCount } from '@/lib/db';
+import { getAllArticles, getArticleCount } from '../../lib/db';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     // Get limit from query

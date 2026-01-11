@@ -1,7 +1,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import * as cheerio from 'cheerio';
-import { insertArticles, deleteOldArticles, deleteInvalidArticles, Article } from '@/lib/db';
+import { insertArticles, deleteOldArticles, deleteInvalidArticles, Article } from '../../lib/db';
 
 export const config = {
     maxDuration: 60, // Serverless function timeout
