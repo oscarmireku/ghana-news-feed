@@ -1,7 +1,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import * as cheerio from 'cheerio';
-import { insertArticles, deleteOldArticles, deleteInvalidArticles, Article } from '../../lib/db';
+import { insertArticles, deleteOldArticles, deleteInvalidArticles, getAllLinks, Article } from '../../lib/db';
 
 export const config = {
     maxDuration: 60, // Serverless function timeout
@@ -695,10 +695,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // sort
     allStories.sort((a, b) => b.timestamp - a.timestamp);
 
-    // Deep Fetch Metadata for ALL articles to ensure correct images and dates
-    const batch = allStories.slice(0, 80); // Limit to 80 articles per scrape
+    // Get existing links from database to skip already-processed articles
+    const existingLinks = await getAllLinks();
+    console.log(`CRON: Database has ${existingLinks.size} existing articles`);
 
-    console.log(`CRON: Fetching metadata for ${batch.length} articles...`);
+    // Filter out articles we already have
+    const newStories = allStories.filter(story => !existingLinks.has(story.link));
+    console.log(`CRON: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
+
+    // Deep Fetch Metadata ONLY for NEW articles to ensure correct images and dates
+    const batch = newStories.slice(0, 80); // Limit to 80 articles per scrape
+
+    console.log(`CRON: Fetching metadata for ${batch.length} new articles...`);
 
     await Promise.all(batch.map(async (story) => {
         const metadata = await fetchArticleMetadata(story.link, story.source);

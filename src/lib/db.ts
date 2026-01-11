@@ -116,6 +116,17 @@ export async function getArticleCount(): Promise<number> {
   return Number(rs.rows[0].count);
 }
 
+export async function getAllLinks(): Promise<Set<string>> {
+  const rs = await db.execute('SELECT link FROM articles');
+  const links = new Set<string>();
+  for (const row of rs.rows) {
+    if (typeof row.link === 'string') {
+      links.add(row.link);
+    }
+  }
+  return links;
+}
+
 
 export async function deleteOldArticles(limit: number): Promise<number> {
   // SQLite doesn't support DELETE ... LIMIT directly in all versions, 
