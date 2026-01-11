@@ -665,6 +665,12 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    // Secure the endpoint with a secret key
+    const authHeader = req.headers.authorization;
+    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
     console.log('CRON: Starting scrape...');
 
     const [ghanaStories, adomStories, peaceStories, joyStories, threeNewsStories, dailyGuideResult, genericStories] = await Promise.all([

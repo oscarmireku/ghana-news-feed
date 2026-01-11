@@ -1,0 +1,15 @@
+name: Update News Feed
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # Run every 10 minutes
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel Cron
+        run: |
+          curl -X GET https://ghana-news-feed.vercel.app/api/cron \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
