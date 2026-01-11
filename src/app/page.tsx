@@ -86,7 +86,7 @@ export default function Home() {
     <main className={styles.main}>
       <div className={styles.container}>
         <header className={styles.header}>
-          <h1 className={styles.title}>Ghana Top News</h1>
+          <h1 className={styles.title}>Ghana Top News (Vercel Test)</h1>
           <p className={styles.subtitle}>Unified feed: GhanaWeb, AdomOnline, PeaceFM, MyJoyOnline</p>
         </header>
 
