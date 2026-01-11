@@ -55,19 +55,8 @@ export default function Home() {
     if (isManual) setIsRefreshing(true);
     setError(null);
     try {
-      // Trigger update logic first (on manual refresh or interval)
-      // We assume this endpoint handles scraping and updating DB.
-      // We await it so we display fresh data.
-      // Note: This might take a few seconds on cold start or heavy scrape.
-      if (isManual) {
-        await fetch('/api/cron');
-      } else {
-        // Background update logic? If we are in useEffect interval, we want to update.
-        // Let's just always update.
-        // Optimization: Maybe only update if > 5 minutes since last update?
-        // The interval handles the timing.
-        await fetch('/api/cron');
-      }
+      // Fire and forget cron to ensure updates happen but don't block UI if it fails
+      fetch('/api/cron').catch(err => console.error('Cron trigger failed', err));
 
       const res = await fetch('/api/news');
       if (!res.ok) {
