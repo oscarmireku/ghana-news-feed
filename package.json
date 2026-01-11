@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
-    "better-sqlite3": "^12.6.0",
     "cheerio": "^1.1.2",
     "dotenv": "^17.2.3",
     "lucide-react": "^0.562.0",
@@ -20,7 +19,6 @@
     "tsx": "^4.21.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
