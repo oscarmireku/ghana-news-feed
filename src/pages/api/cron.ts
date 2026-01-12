@@ -600,11 +600,13 @@ const GENERIC_FEEDS = [
     { source: 'Starr FM', url: 'https://starrfm.com.gh/feed/', section: 'News' },
     { source: 'News Ghana', url: 'https://newsghana.com.gh/feed/', section: 'News' },
     { source: 'The B&FT', url: 'https://thebftonline.com/feed/', section: 'Business' },
+    { source: 'Atinka Online', url: 'https://atinkaonline.com/feed/', section: 'News' },
     { source: 'Asaase Radio', url: 'https://asaaseradio.com/feed/', section: 'News' },
     { source: 'The Herald', url: 'https://theheraldghana.com/feed/', section: 'News' },
     { source: 'The Chronicle', url: 'https://thechronicle.com.gh/feed/', section: 'News' },
     { source: 'GhPage', url: 'https://ghpage.com/feed/', section: 'Entertainment' },
     { source: 'Ameyaw Debrah', url: 'https://ameyawdebrah.com/feed/', section: 'Entertainment' },
+    { source: 'YFM Ghana', url: 'https://yfmghana.com/feed/', section: 'Entertainment' },
     { source: 'Happy Ghana', url: 'https://www.happyghana.com/feed/', section: 'News' },
     { source: 'GhanaSoccerNet', url: 'https://ghanasoccernet.com/feed', section: 'Sports' }
 ];
