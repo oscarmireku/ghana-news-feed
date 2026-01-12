@@ -55,10 +55,9 @@ export default function Home() {
     if (isManual) setIsRefreshing(true);
     setError(null);
     try {
-      // Fire and forget cron to ensure updates happen but don't block UI if it fails
-      fetch('/api/cron').catch(err => console.error('Cron trigger failed', err));
+      // Note: We no longer trigger /api/cron here as it is handled by GitHub Actions
 
-      const res = await fetch('/api/news');
+      const res = await fetch('/api/news', { cache: 'no-store' });
       if (!res.ok) {
         throw new Error(`Failed to fetch news: ${res.status} ${res.statusText}`);
       }
