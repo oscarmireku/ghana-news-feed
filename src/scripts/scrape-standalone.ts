@@ -295,8 +295,8 @@ async function scrapeGhanaWeb(): Promise<Story[]> {
                 title,
                 link: fullLink,
                 image: image || null,
-                time: 'Recent', // Will be fixed by metadata fetch
-                timestamp: Date.now(),
+                time: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), // Show today's date since we scrape homepage
+                timestamp: Date.now(), // Still need timestamp for sorting, but frontend will use 'time' string
                 section: 'News' // Default to News since we're scraping homepage
             });
         });

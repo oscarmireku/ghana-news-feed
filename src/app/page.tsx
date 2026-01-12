@@ -169,7 +169,7 @@ export default function Home() {
                   <div className={styles.cardMeta}>
                     <Clock size={14} />
                     <span>
-                      {story.timestamp ? timeAgo(story.timestamp) : (story.time || 'Just now')}
+                      {story.time && story.time !== 'Recent' ? story.time : (story.timestamp ? timeAgo(story.timestamp) : 'Just now')}
                     </span>
                   </div>
                 </div>
