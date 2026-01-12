@@ -417,68 +417,74 @@ async function scrapePeaceFM(): Promise<Story[]> {
 // ---------------------------------------------------------------------------
 // Source: MyJoyOnline (HTML Scrape Sections)
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Source: MyJoyOnline (RSS Feed)
+// ---------------------------------------------------------------------------
 async function scrapeMyJoyOnline(): Promise<Story[]> {
-    const sections = [
-        { name: 'News', url: 'https://www.myjoyonline.com/news/' },
-        { name: 'Sports', url: 'https://www.myjoyonline.com/sports/' },
-        { name: 'Business', url: 'https://www.myjoyonline.com/business/' }
-    ];
-
     const stories: Story[] = [];
     const seenLinks = new Set<string>();
 
-    await Promise.all(sections.map(async (sec) => {
-        try {
-            const res = await fetch(sec.url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-            const html = await res.text();
-            const $ = cheerio.load(html);
+    try {
+        const res = await fetch('https://www.myjoyonline.com/feed/', {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (!res.ok) throw new Error(`MyJoyOnline RSS failed: ${res.status}`);
 
-            const containers = $('.news-main-list .col-lg-3, .col-lg-6, .home-section-story-list li, .main-listing-article');
+        const xml = await res.text();
+        const $ = cheerio.load(xml, { xmlMode: true });
 
-            containers.slice(0, 10).each((_, el) => {
-                const imgLink = $(el).find('a.bgposition');
-                const titleLink = $(el).find('h3 a, h4 a, .title a').first();
-                const fallbackLink = $(el).find('a').first();
+        $('item').slice(0, 15).each((_, el) => {
+            const title = $(el).find('title').text().trim();
+            const link = $(el).find('link').text().trim();
+            const pubDate = $(el).find('pubDate').text().trim();
 
-                const finalLink = titleLink.length ? titleLink : (imgLink.length ? imgLink : fallbackLink);
+            if (seenLinks.has(link)) return;
+            seenLinks.add(link);
 
-                const link = finalLink.attr('href');
-                let title = finalLink.text().trim();
-                if (!title) title = $(el).find('h1, h2, h3, h4').text().trim();
+            let timestamp = Date.now();
+            let timeDisplay = 'Recent';
 
-                let image = $(el).find('img').attr('data-src') || $(el).find('img').attr('src');
-                if (!image && imgLink.attr('style')) {
-                    const match = imgLink.attr('style')?.match(/url\(['"]?([^'"]+)['"]?\)/);
-                    if (match) image = match[1];
-                }
+            if (pubDate) {
+                const parsed = parsePublicationDate(pubDate);
+                timestamp = parsed.timestamp;
+                timeDisplay = parsed.display;
+            }
 
-                let dateStr = $(el).find('.date, time, .post-date, .published, .entry-date').first().text().trim();
-                if (!dateStr) {
-                    dateStr = $(el).find('time').attr('datetime') || '';
-                }
-                const { timestamp, display } = parsePublicationDate(dateStr);
+            let image = $(el).find('media\\:content').attr('url') ||
+                $(el).find('media\\:thumbnail').attr('url');
 
-                if (link && title && title.length > 10) {
-                    const fullLink = resolveUrl('https://www.myjoyonline.com', link);
-                    if (seenLinks.has(fullLink)) return;
-                    seenLinks.add(fullLink);
+            // Fallback image extraction from content:encoded
+            if (!image) {
+                const content = $(el).find('content\\:encoded').text();
+                const match = content.match(/src="([^"]+)"/);
+                if (match) image = match[1];
+            }
 
-                    stories.push({
-                        id: `joy-${stories.length + Math.random()}`,
-                        source: 'MyJoyOnline',
-                        title,
-                        link: fullLink,
-                        image: image || null,
-                        time: display,
-                        timestamp,
-                        section: sec.name
-                    });
-                }
+            // Determine section from category tags
+            let section = 'News';
+            const categories: string[] = [];
+            $(el).find('category').each((_, cat) => {
+                categories.push($(cat).text().toLowerCase());
             });
-        } catch (e) {
-            console.error(`MyJoyOnline ${sec.name} Error:`, e);
-        }
-    }));
+
+            if (categories.some(c => c.includes('sport') || c.includes('football'))) section = 'Sports';
+            else if (categories.some(c => c.includes('business') || c.includes('economy'))) section = 'Business';
+            else if (categories.some(c => c.includes('entertainment') || c.includes('showbiz'))) section = 'Entertainment';
+
+            stories.push({
+                id: `joy-${stories.length + Math.random()}`,
+                source: 'MyJoyOnline',
+                title,
+                link,
+                image: image || null,
+                time: timeDisplay,
+                timestamp,
+                section
+            });
+        });
+    } catch (e) {
+        console.error('MyJoyOnline RSS Error:', e);
+    }
 
     return stories;
 }
