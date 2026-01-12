@@ -156,6 +156,13 @@ async function fetchArticleMetadata(link: string, source?: string): Promise<{ im
             $('#date').text() ||
             $('time').first().attr('datetime');
 
+        // MyJoyOnline-specific date extraction
+        if (!dateStr && source === 'MyJoyOnline') {
+            dateStr = $('.post-date, .entry-date, .published, .article-date').first().text().trim() ||
+                $('.meta-info time').text().trim() ||
+                $('span[class*="date"]').first().text().trim();
+        }
+
         let timestamp: number | undefined;
         let time: string | undefined;
 
@@ -778,7 +785,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
     });
 
-    const storiesWithImages = allStories.filter(story =>
+    // Filter out articles older than 7 days (prevents old stories from appearing)
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const recentStories = allStories.filter(story => story.timestamp >= sevenDaysAgo);
+    const oldStoriesFiltered = allStories.length - recentStories.length;
+    if (oldStoriesFiltered > 0) {
+        console.log(`CRON: Filtered out ${oldStoriesFiltered} articles older than 7 days`);
+    }
+
+    const storiesWithImages = recentStories.filter(story =>
         story.image !== null &&
         story.image !== '' &&
         !story.image.toLowerCase().endsWith('.svg')
