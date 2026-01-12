@@ -15,6 +15,39 @@ function normalizeTitle(title: string): string {
     return title.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+// Calculate similarity between two titles (0-1 scale)
+function titleSimilarity(title1: string, title2: string): number {
+    const normalize = (s: string) => s.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const t1 = normalize(title1);
+    const t2 = normalize(title2);
+
+    // Quick exact match check
+    if (t1 === t2) return 1.0;
+
+    // Word-based similarity (Jaccard similarity)
+    const words1 = new Set(t1.split(' ').filter(w => w.length > 2)); // Ignore short words
+    const words2 = new Set(t2.split(' ').filter(w => w.length > 2));
+
+    if (words1.size === 0 || words2.size === 0) return 0;
+
+    const intersection = new Set([...words1].filter(w => words2.has(w)));
+    const union = new Set([...words1, ...words2]);
+
+    return intersection.size / union.size;
+}
+
+// Check if a story is a duplicate based on title similarity
+function isDuplicateStory(newStory: Story, existingStories: Story[], threshold = 0.7): boolean {
+    return existingStories.some(existing => {
+        const similarity = titleSimilarity(newStory.title, existing.title);
+        return similarity >= threshold;
+    });
+}
+
 function resolveUrl(base: string, relative: string): string {
     try {
         return new URL(relative, base).href;
@@ -691,6 +724,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const uniqueMap = new Map();
     allStories.forEach(s => uniqueMap.set(s.link, s));
     allStories = Array.from(uniqueMap.values());
+
+    // Fuzzy deduplication: Remove stories with similar titles (same story from different sources)
+    const deduplicatedStories: Story[] = [];
+    let duplicatesRemoved = 0;
+
+    for (const story of allStories) {
+        if (!isDuplicateStory(story, deduplicatedStories, 0.75)) {
+            deduplicatedStories.push(story);
+        } else {
+            duplicatesRemoved++;
+        }
+    }
+
+    allStories = deduplicatedStories;
+    console.log(`CRON: Removed ${duplicatesRemoved} duplicate stories based on title similarity`);
 
     // sort
     allStories.sort((a, b) => b.timestamp - a.timestamp);
