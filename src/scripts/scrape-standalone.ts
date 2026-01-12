@@ -390,7 +390,7 @@ async function scrapePeaceFM(): Promise<Story[]> {
             const link = `https://www.peacefmonline.com/pages/${section}/${category}/${item.slug}`;
 
             return {
-                id: `peace-${item.article_id}`,
+                id: `peace-${Math.random().toString(36).substring(2, 15)}`,
                 source: 'PeaceFM',
                 title: item.main_title,
                 link: link,
