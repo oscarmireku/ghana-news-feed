@@ -239,67 +239,70 @@ async function scrapeGhanaWeb(): Promise<Story[]> {
             const html = await res.text();
             const $ = cheerio.load(html);
 
-            let candidates = $('.inner-lead, .sub-menu-list__news li, .news_listing .inner, #leads .inner, .news-list li');
+            // Generic Link Scanner for GhanaWeb (since structure changes frequently)
+            const links = $('a[href*="/GhanaHomePage/"]');
 
-            if (candidates.length === 0) {
-                candidates = $('a[href*="artikel.php"], a[href*="/NewsArchive/"], a[href*="/SportsArchive/"], a[href*="/business/"]');
-            }
-
-            candidates.slice(0, 10).each((_, el) => {
-                const a = $(el).is('a') ? $(el) : $(el).find('a').first();
+            links.each((_, el) => {
+                const a = $(el);
                 const link = a.attr('href');
                 let title = a.attr('title') || a.text().trim();
 
-                if (!title || title.length < 5) {
-                    title = $(el).find('h2, h3, h4, p').text().trim();
-                }
+                if (!link || !title || title.length < 10) return;
 
-                let image = $(el).find('img').attr('src');
-                if (!image) {
-                    image = $(el).closest('div, li').find('img').attr('src');
-                }
+                // Expand weird relative links if needed, though they usually start with /
+                const fullLink = resolveUrl('https://www.ghanaweb.com', link);
 
-                let dateStr = $(el).find('.date, .time, time, .published, .post-date').first().text().trim();
-                if (!dateStr) {
-                    dateStr = $(el).find('time').attr('datetime') || '';
-                }
-                const { timestamp, display } = parsePublicationDate(dateStr);
+                // Filter out Landing Pages and known non-article sections
+                const ignoredPaths = [
+                    '/GhanaHomePage/NewsArchive/', '/GhanaHomePage/SportsArchive/',
+                    '/GhanaHomePage/business/', '/GhanaHomePage/opinion/',
+                    '/GhanaHomePage/entertainment/', '/GhanaHomePage/africa/',
+                    '/GhanaHomePage/crime/', '/GhanaHomePage/health/',
+                    '/GhanaHomePage/regional/', '/GhanaHomePage/religion/',
+                    '/GhanaHomePage/diaspora/', '/GhanaHomePage/politics/', // Landing pages often end in /
+                    '/GhanaHomePage/'
+                ];
 
+                // Check if exact match to ignored path
+                const path = new URL(fullLink).pathname;
+                if (ignoredPaths.includes(path) || path === '/GhanaHomePage/') return;
+
+                // Additional filter: Article URLs usually have more segments or end in .php or digits
+                // If it looks like a category landing page (e.g. /GhanaHomePage/NewsArchive/), skip
+                if (ignoredPaths.some(p => fullLink.includes(p) && fullLink.endsWith('/'))) return;
+
+                // Unwanted Titles
                 const unwantedTitlePatterns = [
                     'Home - News', 'Home - Business', 'Home - Sports', 'Home-Business',
                     'Business archive', 'News Archive', 'Sports Archive', 'Photo Archives',
                     'Archive', 'Category:', 'Section:', 'More News', 'More Stories',
-                    'View All', 'Latest News', 'Top Stories'
+                    'View All', 'Latest News', 'Top Stories', 'Click here', 'Read more'
                 ];
-
                 const isUnwantedTitle = unwantedTitlePatterns.some(pattern =>
                     title.toLowerCase().trim() === pattern.toLowerCase() ||
                     title.toLowerCase().includes(pattern.toLowerCase())
                 );
+                if (isUnwantedTitle) return;
 
-                const hasArticleId = link?.includes('artikel.php?ID=') ||
-                    /\/\d{7,}-/.test(link || '');
+                if (seenLinks.has(fullLink)) return;
+                seenLinks.add(fullLink);
 
-                const hasSvgImage = image?.toLowerCase().endsWith('.svg');
+                // Try to find image nearby
+                let image = a.find('img').attr('src') ||
+                    a.closest('div, li').find('img').attr('src');
+                if (image) image = resolveUrl('https://cdn.ghanaweb.com', image);
+                if (image?.endsWith('.svg')) image = null;
 
-                if (link && title && title.length > 10 && !link.includes('javascript') && !link.includes('#') && !isUnwantedTitle && hasArticleId && !hasSvgImage) {
-                    const fullLink = resolveUrl('https://www.ghanaweb.com', link);
-                    if (seenLinks.has(fullLink)) return;
-                    seenLinks.add(fullLink);
-
-                    if (image) image = resolveUrl('https://cdn.ghanaweb.com', image);
-
-                    stories.push({
-                        id: `gw-${stories.length + Math.random()}`,
-                        source: 'GhanaWeb',
-                        title,
-                        link: fullLink,
-                        image: image || null,
-                        time: display,
-                        timestamp,
-                        section: sec.name
-                    });
-                }
+                stories.push({
+                    id: `gw-${Math.random().toString(36).substring(2, 9)}`, // Random ID since URL ID is flaky
+                    source: 'GhanaWeb',
+                    title,
+                    link: fullLink,
+                    image: image || null,
+                    time: 'Recent', // Will be fixed by metadata fetch
+                    timestamp: Date.now(),
+                    section: sec.name
+                });
             });
         } catch (e) {
             console.error(`GhanaWeb ${sec.name} Error:`, e);
