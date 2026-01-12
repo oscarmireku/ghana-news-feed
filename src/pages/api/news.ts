@@ -13,8 +13,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             getArticleCount()
         ]);
 
-        // Cache for 1 minute (60s) to balance load vs freshness
-        res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
+        // Disable cache completely for testing
+        res.setHeader('Cache-Control', 'no-store');
 
         res.status(200).json({
             stories,
