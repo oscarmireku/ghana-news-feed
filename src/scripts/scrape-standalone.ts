@@ -674,6 +674,11 @@ async function main() {
     // Sequential or limited concurrency might be better if we were worried about rate limits,
     // but Promise.all is fine for now as long as we don't have too many.
     await Promise.all(batch.map(async (story) => {
+        // Skip GhanaWeb - their meta tags are unreliable and we only scrape homepage anyway
+        if (story.source === 'GhanaWeb') {
+            return;
+        }
+
         const metadata = await fetchArticleMetadata(story.link, story.source);
 
         if (metadata.timestamp && metadata.time) {
