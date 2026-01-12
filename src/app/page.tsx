@@ -16,32 +16,36 @@ interface Story {
   section?: string;
 }
 
-function timeAgo(timestamp?: number) {
+function formatDate(timestamp?: number, timeString?: string) {
+  // Prefer the time string if it's available and not "Recent"
+  if (timeString && timeString !== 'Recent') {
+    return timeString;
+  }
+
+  // Otherwise format the timestamp
   if (!timestamp) return 'Just now';
 
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
-  // Negative check (future time)
-  if (seconds < 0) return 'Just now';
+  // If today, show time
+  if (diffInHours < 24 && date.getDate() === now.getDate()) {
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
 
-  let interval = Math.floor(seconds / 31536000);
-  if (interval >= 1) return interval + "y ago";
+  // If yesterday
+  if (diffInHours < 48 && date.getDate() === now.getDate() - 1) {
+    return 'Yesterday';
+  }
 
-  interval = Math.floor(seconds / 2592000);
-  if (interval >= 1) return interval + "mo ago";
+  // If this year, show month and day
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
 
-  interval = Math.floor(seconds / 86400);
-  if (interval >= 1) return interval + "d ago";
-
-  interval = Math.floor(seconds / 3600);
-  if (interval >= 1) return interval + "h ago";
-
-  interval = Math.floor(seconds / 60);
-  if (interval >= 1) return interval + "m ago";
-
-  if (seconds < 30) return "Just now";
-
-  return Math.floor(seconds) + "s ago";
+  // Otherwise show full date
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export default function Home() {
@@ -169,7 +173,7 @@ export default function Home() {
                   <div className={styles.cardMeta}>
                     <Clock size={14} />
                     <span>
-                      {story.time && story.time !== 'Recent' ? story.time : (story.timestamp ? timeAgo(story.timestamp) : 'Just now')}
+                      {formatDate(story.timestamp, story.time)}
                     </span>
                   </div>
                 </div>
