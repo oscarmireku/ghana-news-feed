@@ -15,7 +15,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // Cache for 10 minutes on Vercel's Edge Network
         // This reduces function invocations by ~99% and enables scaling to 100K+ users
-        res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=60');
+        // TEMPORARILY DISABLED to see fresh database state
+        // res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=60');
 
         res.status(200).json({
             stories,
