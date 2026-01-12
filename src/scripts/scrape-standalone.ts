@@ -1,4 +1,12 @@
 import 'dotenv/config';
+
+// FAIL FAST: Ensure we are connecting to the real DB in production/CI
+if (!process.env.TURSO_DATABASE_URL && process.env.CI) {
+    console.error("CRITICAL ERROR: TURSO_DATABASE_URL is not set in CI environment!");
+    console.error("The scraper would otherwise write to a temporary local file and data would be lost.");
+    process.exit(1);
+}
+
 import * as cheerio from 'cheerio';
 import { insertArticles, deleteOldArticles, deleteInvalidArticles, getAllLinks, Article } from '../lib/db';
 
