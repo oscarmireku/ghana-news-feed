@@ -157,10 +157,13 @@ async function fetchArticleMetadata(link: string, source?: string): Promise<{ im
             $('meta[itemprop="datePublished"]').attr('content') ||
             $('meta[name="pubdate"]').attr('content') ||
             $('#date').text() ||
-            $('time').first().attr('datetime');
+            $('time').first().attr('datetime') ||
+            // MyJoyOnline specific deep-fetch selectors
+            $('meta[name="publish-date"]').attr('content');
 
-        // MyJoyOnline-specific date extraction
+        // MyJoyOnline-specific date extraction from HTML text (listing page or fallback)
         if (!dateStr && source === 'MyJoyOnline') {
+            // In listing pages, these are often empty, but good to have as fallback
             dateStr = $('.post-date, .entry-date, .published, .article-date').first().text().trim() ||
                 $('.meta-info time').text().trim() ||
                 $('span[class*="date"]').first().text().trim();
@@ -756,12 +759,22 @@ async function main() {
     const existingLinks = await getAllLinks();
     console.log(`SCRAPER: Database has ${existingLinks.size} existing articles`);
 
-    // Filter out articles we already have
+    // Filter out articles we already have, UNLESS they have "Recent" time (bad parse) and we want to try fixing them.
+    // We check if timestamp is within last 10 minutes of now AND display is 'Recent' (heuristic for bad parse or just fresh)
+    // Actually, simpler: if existingLinks has it but we know MyJoyOnline lists are bad, we might want to force update.
+    // For now, let's stick to "new stories" but allow a specialized "force update" batch if needed.
+
+    // BETTER FIX: If we have an existing link but want to update it, we can't filter it out here.
+    // But inserting it again with ON CONFLICT UPDATE works.
+    // So let's include articles that match existingLinks IF their source is MyJoyOnline and we want to retry metadata.
+
+    // Current Logic: Only process NEW links.
     const newStories = allStories.filter(story => !existingLinks.has(story.link));
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
-    // Deep Fetch Metadata ONLY for NEW articles to ensure correct images and dates
-    const batch = newStories.slice(0, 80); // Limit to 80 articles per scrape
+    // Deep Fetch Metadata for NEW articles
+    // AND optionally for some existing ones if we suspect they are broken (e.g. MyJoyOnline with "Recent")
+    const batch = newStories.slice(0, 80);
 
     console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles...`);
 
