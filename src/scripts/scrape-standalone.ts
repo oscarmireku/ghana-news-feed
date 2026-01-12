@@ -489,123 +489,14 @@ async function scrapeMyJoyOnline(): Promise<Story[]> {
     return stories;
 }
 
-// ---------------------------------------------------------------------------
-// Source: 3News (RSS Feed)
-// ---------------------------------------------------------------------------
-async function scrape3News(): Promise<Story[]> {
-    const stories: Story[] = [];
-    const seenLinks = new Set<string>();
 
-    try {
-        const res = await fetch('https://3news.com/news/feed.xml', {
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-        if (!res.ok) throw new Error(`3News RSS failed: ${res.status}`);
-
-        const xml = await res.text();
-        const $ = cheerio.load(xml, { xmlMode: true });
-
-        $('item').slice(0, 10).each((_, el) => {
-            const title = $(el).find('title').text().trim();
-            const link = $(el).find('link').text().trim();
-            const pubDate = $(el).find('pubDate').text().trim();
-
-            if (seenLinks.has(link)) return;
-            seenLinks.add(link);
-
-            let timestamp = Date.now();
-            let timeDisplay = 'Recent';
-            if (pubDate) {
-                const parsed = parsePublicationDate(pubDate);
-                timestamp = parsed.timestamp;
-                timeDisplay = parsed.display;
-            }
-
-            let image = $(el).find('media\\:content').attr('url') ||
-                $(el).find('media\\:thumbnail').attr('url');
-
-            if (!image) {
-                const description = $(el).find('description').text();
-                const match = description.match(/src="([^"]+)"/);
-                if (match) image = match[1];
-            }
-
-            stories.push({
-                id: `3news-${stories.length + Math.random()}`,
-                source: '3News',
-                title,
-                link,
-                image: image || null,
-                time: timeDisplay,
-                timestamp,
-                section: 'News'
-            });
-        });
-    } catch (e) {
-        console.error('3News Error:', e);
-    }
-
-    return stories;
-}
-
-async function scrapeDailyGuide(): Promise<{ stories: Article[], logs: string[] }> {
-    const stories: Article[] = [];
-    const logs: string[] = [];
-    try {
-        const res = await fetch('https://dailyguidenetwork.com/feed/', {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            },
-        });
-
-        if (!res.ok) {
-            logs.push(`DailyGuide RSS Error: ${res.status}`);
-            return { stories, logs };
-        }
-
-        const xml = await res.text();
-        const $ = cheerio.load(xml, { xmlMode: true });
-
-        const items = $('item').slice(0, 10);
-        logs.push(`DailyGuide: Found ${items.length} items`);
-
-        items.each((_, el) => {
-            const title = $(el).find('title').text().trim();
-            const link = $(el).find('link').text().trim();
-            const pubDate = $(el).find('pubDate').text().trim();
-
-            if (!link) return;
-
-            let timestamp = Date.now();
-            let timeDisplay = 'Recent';
-            if (pubDate) {
-                const parsed = parsePublicationDate(pubDate);
-                timestamp = parsed.timestamp;
-                timeDisplay = parsed.display;
-            }
-
-            stories.push({
-                id: `dailyguide-${stories.length + Math.random()}`,
-                source: 'DailyGuide',
-                title,
-                link,
-                image: null,
-                time: timeDisplay,
-                timestamp,
-                section: 'News'
-            });
-        });
-    } catch (e) {
-        logs.push(`DailyGuide Error: ${e}`);
-    }
-
-    return { stories, logs };
-}
 
 // ---------------------------------------------------------------------------
 // Source: Generic RSS Scraper
 // ---------------------------------------------------------------------------
 const GENERIC_FEEDS = [
+    { source: '3News', url: 'https://3news.com/news/feed.xml', section: 'News' },
+    { source: 'DailyGuide', url: 'https://dailyguidenetwork.com/feed/', section: 'News' },
     { source: 'CitiNewsRoom', url: 'https://citinewsroom.com/feed/', section: 'News' },
     { source: 'Modern Ghana', url: 'https://www.modernghana.com/rssfeed/news.xml', section: 'News' },
     { source: 'GNA', url: 'https://gna.org.gh/feed/', section: 'News' },
@@ -726,19 +617,15 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 async function main() {
     console.log('SCRAPER: Starting job...');
 
-    const [ghanaStories, adomStories, peaceStories, joyStories, threeNewsStories, dailyGuideResult, genericStories] = await Promise.all([
+    const [ghanaStories, adomStories, peaceStories, joyStories, genericStories] = await Promise.all([
         scrapeGhanaWeb(),
         scrapeAdomOnline(),
         scrapePeaceFM(),
         scrapeMyJoyOnline(),
-        scrape3News(),
-        scrapeDailyGuide(),
         scrapeGenericRSS()
     ]);
 
-    const dailyGuideStories = dailyGuideResult.stories;
-
-    let allStories = [...ghanaStories, ...adomStories, ...peaceStories, ...joyStories, ...threeNewsStories, ...dailyGuideStories, ...genericStories];
+    let allStories = [...ghanaStories, ...adomStories, ...peaceStories, ...joyStories, ...genericStories];
 
     console.log(`SCRAPER: Fetched ${allStories.length} raw stories.`);
 
