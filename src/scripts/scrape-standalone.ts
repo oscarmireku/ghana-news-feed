@@ -291,7 +291,7 @@ async function scrapeGhanaWeb(): Promise<Story[]> {
                 let image = a.find('img').attr('src') ||
                     a.closest('div, li').find('img').attr('src');
                 if (image) image = resolveUrl('https://cdn.ghanaweb.com', image);
-                if (image?.endsWith('.svg')) image = null;
+                if (image?.endsWith('.svg')) image = undefined;
 
                 stories.push({
                     id: `gw-${Math.random().toString(36).substring(2, 9)}`, // Random ID since URL ID is flaky
@@ -622,7 +622,9 @@ const GENERIC_FEEDS = [
     { source: 'Ameyaw Debrah', url: 'https://ameyawdebrah.com/feed/', section: 'Entertainment' },
     { source: 'YFM Ghana', url: 'https://yfmghana.com/feed/', section: 'Entertainment' },
     { source: 'Happy Ghana', url: 'https://www.happyghana.com/feed/', section: 'News' },
-    { source: 'GhanaSoccerNet', url: 'https://ghanasoccernet.com/feed', section: 'Sports' }
+    { source: 'GhanaSoccerNet', url: 'https://ghanasoccernet.com/feed', section: 'Sports' },
+    { source: 'ZionFelix', url: 'https://www.zionfelix.net/feed/', section: 'Entertainment' },
+    { source: 'Nkonkonsa', url: 'https://nkonkonsa.com/feed/', section: 'Entertainment' }
 ];
 
 async function scrapeGenericRSS(): Promise<Story[]> {
