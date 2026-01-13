@@ -302,8 +302,8 @@ async function scrapeGhanaWeb(): Promise<Story[]> {
                     title,
                     link: fullLink,
                     image: image || null,
-                    time: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                    timestamp: Date.now(),
+                    time: '', // Don't show date since we can't extract it reliably
+                    timestamp: Date.now(), // Used for sorting only
                     section: sec.name
                 });
             });

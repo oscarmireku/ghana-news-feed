@@ -17,6 +17,11 @@ interface Story {
 }
 
 function formatDate(timestamp?: number, timeString?: string) {
+  // If time string is explicitly empty, don't show date
+  if (timeString === '') {
+    return '';
+  }
+
   // Prefer the time string if it's available and not "Recent"
   if (timeString && timeString !== 'Recent') {
     return timeString;
@@ -170,12 +175,14 @@ export default function Home() {
                     </div>
                   )}
                   <h2 className={styles.cardTitle}>{story.title}</h2>
-                  <div className={styles.cardMeta}>
-                    <Clock size={14} />
-                    <span>
-                      {formatDate(story.timestamp, story.time)}
-                    </span>
-                  </div>
+                  {formatDate(story.timestamp, story.time) && (
+                    <div className={styles.cardMeta}>
+                      <Clock size={14} />
+                      <span>
+                        {formatDate(story.timestamp, story.time)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </a>
             ))}
