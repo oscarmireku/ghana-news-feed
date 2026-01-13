@@ -169,6 +169,21 @@ async function fetchArticleMetadata(link: string, source?: string): Promise<{ im
                 $('span[class*="date"]').first().text().trim();
         }
 
+        // GhanaWeb-specific date extraction from page text
+        if (!dateStr && source === 'GhanaWeb') {
+            // Look for date in common GhanaWeb elements
+            dateStr = $('.date, .story-date, .article-date, .published-date').first().text().trim();
+
+            // If still not found, search page text for date pattern
+            if (!dateStr) {
+                const bodyText = $('body').text();
+                const dateMatch = bodyText.match(/(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})/i);
+                if (dateMatch) {
+                    dateStr = dateMatch[0];
+                }
+            }
+        }
+
         let timestamp: number | undefined;
         let time: string | undefined;
 
@@ -682,11 +697,6 @@ async function main() {
     // Sequential or limited concurrency might be better if we were worried about rate limits,
     // but Promise.all is fine for now as long as we don't have too many.
     await Promise.all(batch.map(async (story) => {
-        // Skip GhanaWeb - their meta tags are unreliable and we only scrape homepage anyway
-        if (story.source === 'GhanaWeb') {
-            return;
-        }
-
         const metadata = await fetchArticleMetadata(story.link, story.source);
 
         if (metadata.timestamp && metadata.time) {
