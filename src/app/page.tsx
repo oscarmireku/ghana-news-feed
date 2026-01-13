@@ -74,6 +74,16 @@ export default function Home() {
       if (data.stories) {
         setStories(data.stories);
         setLastUpdated(new Date());
+
+        // Update news-feed.json file when manually refreshing
+        if (isManual) {
+          try {
+            await fetch('/api/update-json', { method: 'POST' });
+            console.log('news-feed.json updated');
+          } catch (err) {
+            console.error('Failed to update news-feed.json:', err);
+          }
+        }
       }
     } catch (err: any) {
       console.error('Failed to fetch news', err);

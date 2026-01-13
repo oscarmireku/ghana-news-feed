@@ -635,15 +635,14 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 async function main() {
     console.log('SCRAPER: Starting job...');
 
-    const [ghanaStories, adomStories, peaceStories, joyStories, genericStories] = await Promise.all([
-        scrapeGhanaWeb(),
+    const [adomStories, peaceStories, joyStories, genericStories] = await Promise.all([
         scrapeAdomOnline(),
         scrapePeaceFM(),
         scrapeMyJoyOnline(),
         scrapeGenericRSS()
     ]);
 
-    let allStories = [...ghanaStories, ...adomStories, ...peaceStories, ...joyStories, ...genericStories];
+    let allStories = [...adomStories, ...peaceStories, ...joyStories, ...genericStories];
 
     console.log(`SCRAPER: Fetched ${allStories.length} raw stories.`);
 

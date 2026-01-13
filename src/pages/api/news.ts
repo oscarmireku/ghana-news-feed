@@ -8,10 +8,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const limit = limitParam ? parseInt(limitParam as string) : 500;
 
     try {
-        const [stories, total] = await Promise.all([
+        const [allStories, total] = await Promise.all([
             getAllArticles(limit),
             getArticleCount()
         ]);
+
+        // Filter out GhanaWeb articles
+        const stories = allStories.filter(story => story.source !== 'GhanaWeb');
 
         // Cache for 10 minutes (600s) as requested
         res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=60');
