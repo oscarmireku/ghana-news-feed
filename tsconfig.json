@@ -42,6 +42,7 @@
     "**/*.test.ts",
     "**/*.spec.ts",
     "test-db.js",
-    "scripts"
+    "scripts",
+    "src/scripts"
   ]
 }
