@@ -64,11 +64,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             stories
         };
 
-        // Write to public/news-feed.json
-        const filePath = path.join(process.cwd(), 'public', 'news-feed.json');
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        // file writing removed for Vercel compatibility
 
-        res.status(200).json({ success: true, message: 'news-feed.json updated', count: stories.length });
+        res.status(200).json({ success: true, message: 'Database query executed (JSON update skipped on read-only fs)', count: stories.length });
     } catch (error: any) {
         console.error('Error updating news-feed.json:', error);
         res.status(500).json({ error: error.message });
