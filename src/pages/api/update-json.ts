@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@libsql/client';
-import fs from 'fs';
+
 import path from 'path';
 import { exec } from 'child_process';
 import util from 'util';
