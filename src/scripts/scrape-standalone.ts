@@ -78,10 +78,19 @@ function parsePublicationDate(dateStr: string): { timestamp: number; display: st
         return { timestamp: Date.now(), display: 'Recent' };
     }
 
-    const cleaned = dateStr.trim();
+    let cleaned = dateStr.trim();
+
+    // All Ghana news sources use GMT. If the date string doesn't have explicit timezone info,
+    // append GMT to ensure correct parsing regardless of the scraper's local timezone.
+    const hasTimezone = /GMT|UTC|Z|[+-]\d{2}:?\d{2}/.test(cleaned);
+
+    if (!hasTimezone) {
+        cleaned += ' GMT';
+    }
+
     const d = new Date(cleaned);
 
-    console.log(`[DEBUG DATE] Input: ${dateStr}, Parsed: ${d.toString()}`);
+    console.log(`[DEBUG DATE] Input: ${dateStr}, Adjusted: ${cleaned}, Parsed: ${d.toString()}`);
 
     if (!isNaN(d.getTime())) {
         const timestamp = d.getTime();
