@@ -73,7 +73,7 @@ function resolveUrl(base: string, relative: string): string {
 }
 
 // Parse publication date from various formats
-function parsePublicationDate(dateStr: string): { timestamp: number; display: string } {
+function parsePublicationDate(dateStr: string, source?: string): { timestamp: number; display: string } {
     if (!dateStr || dateStr.trim() === '') {
         return { timestamp: Date.now(), display: 'Recent' };
     }
@@ -93,8 +93,17 @@ function parsePublicationDate(dateStr: string): { timestamp: number; display: st
     console.log(`[DEBUG DATE] Input: ${dateStr}, Adjusted: ${cleaned}, Parsed: ${d.toString()}`);
 
     if (!isNaN(d.getTime())) {
-        const timestamp = d.getTime();
-        const display = d.toLocaleString('en-US', {
+        let timestamp = d.getTime();
+
+        // 3News RSS feed incorrectly adds 4 hours to their GMT timestamps
+        // Their website shows 18:23 GMT but RSS publishes as 22:23 GMT
+        // Subtract 4 hours (14400000 ms) to get the correct GMT time
+        if (source === '3News' && hasTimezone && /GMT/.test(cleaned)) {
+            timestamp -= 4 * 60 * 60 * 1000;
+            console.log(`[DEBUG DATE] 3News correction: ${dateStr} -> ${new Date(timestamp).toISOString()}`);
+        }
+
+        const display = new Date(timestamp).toLocaleString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
             month: 'short',
@@ -207,7 +216,7 @@ export async function fetchArticleMetadata(link: string, source?: string): Promi
         let time: string | undefined;
 
         if (dateStr) {
-            const parsed = parsePublicationDate(dateStr);
+            const parsed = parsePublicationDate(dateStr, source);
 
             if (parsed.display !== 'Recent') {
                 timestamp = parsed.timestamp;
