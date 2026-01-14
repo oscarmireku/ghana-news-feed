@@ -22,35 +22,46 @@ function formatDate(timestamp?: number, timeString?: string) {
     return '';
   }
 
-  // Prefer the time string if it's available and not "Recent"
-  if (timeString && timeString !== 'Recent') {
-    return timeString;
-  }
-
-  // Otherwise format the timestamp
   if (!timestamp) return 'Just now';
 
   const date = new Date(timestamp);
   const now = new Date();
-  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
-  // If today, show time
-  if (diffInHours < 24 && date.getDate() === now.getDate()) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  // 1. Absolute Format: Jan 12, 7:04 pm
+  const absoluteFormat = date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }).replace(',', ''); // Small tweak to match example "Jan 12 7:04 pm" or similar
+
+  // 2. Relative Format: 5 hours ago
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  let relativeFormat = '';
+  if (diffInSeconds < 60) {
+    relativeFormat = 'Just now';
+  } else if (diffInSeconds < 3600) {
+    const mins = Math.floor(diffInSeconds / 60);
+    relativeFormat = `${mins} minute${mins !== 1 ? 's' : ''} ago`;
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    relativeFormat = `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+  } else {
+    const days = Math.floor(diffInSeconds / 86400);
+    relativeFormat = `${days} day${days !== 1 ? 's' : ''} ago`;
   }
 
-  // If yesterday
-  if (diffInHours < 48 && date.getDate() === now.getDate() - 1) {
-    return 'Yesterday';
-  }
+  // Combine them: Jan 12, 7:04 pm. 5 hours ago
+  // Note: toLocaleString usually includes a comma after the day. 
+  // We'll re-format it precisely as the user asked.
 
-  // If this year, show month and day
-  if (date.getFullYear() === now.getFullYear()) {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  }
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const day = date.getDate();
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
 
-  // Otherwise show full date
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${month} ${day}, ${time}. ${relativeFormat}`;
 }
 
 export default function Home() {
