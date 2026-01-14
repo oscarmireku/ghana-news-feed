@@ -1,0 +1,4 @@
+public/news-feed.json
+news-feed.json
+*.log
+.env.local
