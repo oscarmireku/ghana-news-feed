@@ -2,6 +2,10 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@libsql/client';
 import fs from 'fs';
 import path from 'path';
+import { exec } from 'child_process';
+import util from 'util';
+
+const execPromise = util.promisify(exec);
 
 const url = process.env.TURSO_DATABASE_URL!;
 const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -14,9 +18,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-        // Fetch latest news from database (excluding GhanaWeb)
+        // [TESTING ONLY] Force scraping if requested
+        if (req.query.force === 'true') {
+            console.log('Forcing scrape via API...');
+            // In a real Vercel environment, this logic would need to be in a separate function 
+            // imported directly, not executed via shell command, as npx/tsx might not be available or slow.
+            // But for local testing as requested:
+            try {
+                // Use absolute path for safety if possible, or assume execution from project root
+                const projectRoot = process.cwd();
+                const scriptPath = path.join(projectRoot, 'src', 'scripts', 'scrape-standalone.ts');
+                // Use 'tsx' directly if installed or via npx
+                await execPromise(`npx tsx "${scriptPath}"`);
+                console.log('Scrape completed successfully.');
+            } catch (scrapeError: any) {
+                console.error('Forced scrape failed:', scrapeError.message);
+                // Continue to update JSON anyway, or throw? Let's continue.
+            }
+        }
+
+        // Fetch latest news from database (Including GhanaWeb again)
         const result = await db.execute({
-            sql: "SELECT * FROM articles WHERE source != 'GhanaWeb' ORDER BY timestamp DESC LIMIT 100",
+            sql: "SELECT * FROM articles ORDER BY timestamp DESC LIMIT 100",
             args: []
         });
 

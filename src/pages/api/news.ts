@@ -13,8 +13,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             getArticleCount()
         ]);
 
-        // Filter out GhanaWeb articles
-        const stories = allStories.filter(story => story.source !== 'GhanaWeb');
+        // Filter out GhanaWeb articles (REMOVED: User requested to show them again)
+        const stories = allStories;
 
         // Cache for 10 minutes (600s) as requested
         res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=60');

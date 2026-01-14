@@ -64,6 +64,16 @@ export default function Home() {
     if (isManual) setIsRefreshing(true);
     setError(null);
     try {
+      // If manual refresh, force scrape first so we get fresh data
+      if (isManual) {
+        try {
+          await fetch('/api/update-json?force=true', { method: 'POST' });
+          console.log('Forced scrape and JSON update completed');
+        } catch (err) {
+          console.error('Failed to update news-feed.json:', err);
+        }
+      }
+
       // Note: We no longer trigger /api/cron here as it is handled by GitHub Actions
 
       const res = await fetch('/api/news', { cache: 'no-store' });
@@ -74,16 +84,6 @@ export default function Home() {
       if (data.stories) {
         setStories(data.stories);
         setLastUpdated(new Date());
-
-        // Update news-feed.json file when manually refreshing
-        if (isManual) {
-          try {
-            await fetch('/api/update-json', { method: 'POST' });
-            console.log('news-feed.json updated');
-          } catch (err) {
-            console.error('Failed to update news-feed.json:', err);
-          }
-        }
       }
     } catch (err: any) {
       console.error('Failed to fetch news', err);
