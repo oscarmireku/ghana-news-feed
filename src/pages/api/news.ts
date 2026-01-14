@@ -5,7 +5,7 @@ import { getAllArticles, getArticleCount } from '../../lib/db';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     // Get limit from query
     const { limit: limitParam } = req.query;
-    const limit = limitParam ? parseInt(limitParam as string) : 500;
+    const limit = limitParam ? parseInt(limitParam as string) : 1000;
 
     try {
         const [allStories, total] = await Promise.all([
