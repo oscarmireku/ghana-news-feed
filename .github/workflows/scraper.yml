@@ -2,7 +2,7 @@ name: News Scraper
 
 on:
   schedule:
-    - cron: '*/10 * * * *' # Run every 10 minutes
+    - cron: '7/10 * * * *' # Run every 10 minutes (offset by 7 to avoid high-load traffic)
   workflow_dispatch: # Allow manual trigger
   push:
     branches:
