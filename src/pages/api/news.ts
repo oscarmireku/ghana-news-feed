@@ -24,10 +24,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const stories = allStories;
 
         // Dynamic caching strategy based on time of day (GMT)
-        // 10 PM to 4 PM (Overnight/Day): Cache for 1 hour (3600s)
-        // 4 PM to 10 PM (Evening Peak): Cache for 20 minutes (1200s)
+        // 10 PM to 5 AM (Overnight): Cache for 1 hour (3600s)
+        // 5 AM to 10 PM (Daytime): Cache for 20 minutes (1200s)
         const currentHour = new Date().getUTCHours();
-        const isOffPeak = currentHour >= 22 || currentHour < 16;
+        const isOffPeak = currentHour >= 22 || currentHour < 5;
         const cacheTime = isOffPeak ? 3600 : 1200;
 
         res.setHeader('Cache-Control', `s-maxage=${cacheTime}, stale-while-revalidate=60`);
