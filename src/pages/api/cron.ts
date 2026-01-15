@@ -163,6 +163,14 @@ async function fetchArticleMetadata(link: string, source?: string): Promise<{ im
                 $('span[class*="date"]').first().text().trim();
         }
 
+        // GhanaWeb: Prioritize article:published_time as requested by user
+        if (source === 'GhanaWeb') {
+            const gwDate = $('meta[property="article:published_time"]').attr('content') ||
+                $('meta[property="og:article:published_time"]').attr('content') ||
+                $('meta[itemprop="datePublished"]').attr('content');
+            if (gwDate) dateStr = gwDate;
+        }
+
         let timestamp: number | undefined;
         let time: string | undefined;
 

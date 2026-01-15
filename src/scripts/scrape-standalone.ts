@@ -179,7 +179,10 @@ export async function fetchArticleMetadata(link: string, source?: string): Promi
 
         // GhanaWeb: Prioritize article:published_time as requested by user
         if (source === 'GhanaWeb') {
-            const gwDate = $('meta[property="article:published_time"]').attr('content');
+            const gwDate = $('meta[property="article:published_time"]').attr('content') ||
+                $('meta[property="og:article:published_time"]').attr('content') ||
+                $('meta[itemprop="datePublished"]').attr('content');
+
             console.log(`[DEBUG GW] Tag found: ${gwDate}`);
             if (gwDate) dateStr = gwDate;
         }
