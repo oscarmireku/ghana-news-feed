@@ -864,7 +864,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log(`CRON: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
     // Deep Fetch Metadata ONLY for NEW articles to ensure correct images and dates
-    const batch = newStories.slice(0, 80); // Limit to 80 articles per scrape
+    const batch = newStories.slice(0, 20); // Limit to 20 articles per scrape to prevent Vercel 60s timeout
 
     console.log(`CRON: Fetching metadata for ${batch.length} new articles...`);
 
