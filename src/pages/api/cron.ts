@@ -175,37 +175,67 @@ async function fetchArticleMetadata(link: string, source?: string): Promise<{ im
         }
 
         // Content Extraction
-        let contentSelector = '';
-        if (source === '3News') contentSelector = '.prose';
-        else if (source === 'GhanaWeb') contentSelector = '#medsection1, .article-content-area';
-        else if (source === 'AdomOnline') contentSelector = '.td-post-content';
-        else if (source === 'MyJoyOnline') contentSelector = '#article-text';
-
-        // Generic fallback selectors
-        if (!contentSelector) {
-            contentSelector = '.entry-content, .article-body, .post-content, .content-wrapper, article';
-        }
-
-        let contentEl = $(contentSelector).first();
-        if (contentEl.length === 0 && source === 'GhanaWeb') {
-            // Fallback for GhanaWeb
-            contentEl = $('p').parent().filter((i, el) => $(el).find('p').length > 3).first();
-        }
-
         let content = '';
-        if (contentEl.length) {
-            // Remove unwanted elements
-            contentEl.find('script, style, iframe, .related-posts, .ads, .ad, [class*="ad-"], [id*="ad-"]').remove();
 
-            // Get paragraphs
-            const paragraphs: string[] = [];
-            contentEl.find('p').each((_, el) => {
-                const text = $(el).text().trim();
-                if (text.length > 20) { // Filter out short snippets/captions
-                    paragraphs.push(`<p>${text}</p>`);
-                }
-            });
-            content = paragraphs.join('');
+        if (source === '3News') {
+            const el = $('.article-content').first();
+            if (el.length > 0) {
+                // deeply remove specific unwanted 3news elements
+                el.find('.gam-ad-slot, .ad-viewability-tracker, ins.adsbygoogle, script, iframe, style').remove();
+
+                // Remove privacy managers, "remove ads" buttons/text
+                el.find('div, button, a').each((_, elem) => {
+                    const t = $(elem).text().toLowerCase();
+                    if (t.includes('remove ads') || t.includes('privacy manager') || t.includes('tap here to add 3news')) {
+                        $(elem).remove();
+                    }
+                });
+
+                // Get paragraphs
+                const paragraphs: string[] = [];
+                el.find('p').each((_, p) => {
+                    const t = $(p).text().trim();
+                    if (t.length > 5 && !t.toLowerCase().includes('read also') && !t.toLowerCase().includes('read more')) {
+                        paragraphs.push(`<p>${t}</p>`);
+                    }
+                });
+
+                content = paragraphs.join('');
+            }
+        }
+
+        if (!content) {
+            let contentSelector = '';
+            // if (source === '3News') contentSelector = '.prose'; // Handled above now
+            if (source === 'GhanaWeb') contentSelector = '#medsection1, .article-content-area';
+            else if (source === 'AdomOnline') contentSelector = '.td-post-content';
+            else if (source === 'MyJoyOnline') contentSelector = '#article-text';
+
+            // Generic fallback selectors
+            if (!contentSelector) {
+                contentSelector = '.entry-content, .article-body, .post-content, .content-wrapper, article';
+            }
+
+            let contentEl = $(contentSelector).first();
+            if (contentEl.length === 0 && source === 'GhanaWeb') {
+                // Fallback for GhanaWeb
+                contentEl = $('p').parent().filter((i, el) => $(el).find('p').length > 3).first();
+            }
+
+            if (contentEl.length) {
+                // Remove unwanted elements
+                contentEl.find('script, style, iframe, .related-posts, .ads, .ad, [class*="ad-"], [id*="ad-"]').remove();
+
+                // Get paragraphs
+                const paragraphs: string[] = [];
+                contentEl.find('p').each((_, el) => {
+                    const text = $(el).text().trim();
+                    if (text.length > 20) { // Filter out short snippets/captions
+                        paragraphs.push(`<p>${text}</p>`);
+                    }
+                });
+                content = paragraphs.join('');
+            }
         }
 
         return { image, timestamp, time, content };

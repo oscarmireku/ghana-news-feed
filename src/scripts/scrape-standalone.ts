@@ -90,7 +90,7 @@ function parsePublicationDate(dateStr: string): { timestamp: number; display: st
 
     const d = new Date(cleaned);
 
-    console.log(`[DEBUG DATE] Input: ${dateStr}, Adjusted: ${cleaned}, Parsed: ${d.toString()}`);
+    // console.log(`[DEBUG DATE] Input: ${dateStr}, Adjusted: ${cleaned}, Parsed: ${d.toString()}`);
 
     if (!isNaN(d.getTime())) {
         const timestamp = d.getTime();
@@ -215,7 +215,9 @@ export async function fetchArticleMetadata(link: string, source?: string): Promi
             }
         }
 
-        // Robust Content Extraction
+        // Content Extraction
+        let content: string | undefined;
+
         const robustSelectors = [
             '#article-body', '.article-body', '.story-content', '.content-body',
             '.post-content', '.entry-content', 'article', '#main-content',
@@ -223,11 +225,9 @@ export async function fetchArticleMetadata(link: string, source?: string): Promi
             '.td-post-content', '#article-text', '.prose'
         ];
 
-        // Add source specific selectors to the front
+        // Add source specific selectors to the front if not 3News (handled above)
         if (source === 'GhanaWeb') robustSelectors.unshift('#medsection1', '.article-content-area');
         if (source === '3News') robustSelectors.unshift('.prose');
-
-        let content: string | undefined;
 
         for (const selector of robustSelectors) {
             const el = $(selector).first();
@@ -766,8 +766,6 @@ async function scrapeGhanaSoccerNet(): Promise<Story[]> {
                 const mediaContent = $(el).find('media\\:content, content').attr('url');
                 if (mediaContent) image = mediaContent;
             }
-
-
 
             stories.push({
                 id: `${source.toLowerCase()}-${stories.length + Math.random()}`,
