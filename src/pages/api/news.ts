@@ -23,8 +23,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Filter out GhanaWeb articles (REMOVED: User requested to show them again)
         const stories = allStories;
 
-        // Cache for 30 minutes (1800s) to reduce Origin hits
-        res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=60');
+        // Dynamic caching strategy based on time of day (GMT)
+        // 10 PM to 4 PM (Overnight/Day): Cache for 1 hour (3600s)
+        // 4 PM to 10 PM (Evening Peak): Cache for 20 minutes (1200s)
+        const currentHour = new Date().getUTCHours();
+        const isOffPeak = currentHour >= 22 || currentHour < 16;
+        const cacheTime = isOffPeak ? 3600 : 1200;
+
+        res.setHeader('Cache-Control', `s-maxage=${cacheTime}, stale-while-revalidate=60`);
 
         const responseData = {
             stories,
