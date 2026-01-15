@@ -654,6 +654,9 @@ async function scrapeMyJoyOnline(): Promise<Story[]> {
 // ---------------------------------------------------------------------------
 const GENERIC_FEEDS = [
     { source: '3News', url: 'https://3news.com/feed/', section: 'News' },
+    { source: 'Mfidie', url: 'https://mfidie.com/feed/', section: 'Tech' },
+    { source: 'Tech Labari', url: 'https://techlabari.com/feed/', section: 'Tech' },
+    { source: 'News Ghana', url: 'https://newsghana.com.gh/feed/', section: 'News' },
 
 
     { source: 'DailyGuide', url: 'https://dailyguidenetwork.com/feed/', section: 'News' },
