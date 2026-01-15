@@ -1050,8 +1050,8 @@ async function main() {
 
     // Filter out articles older than 7 days (prevents old stories from appearing)
     const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    // CRITICAL FIX: Only process newStories for insertion to avoid overwriting existing DB records with shallow data
-    const recentStories = newStories.filter(story => story.timestamp >= sevenDaysAgo);
+    // CRITICAL FIX: Only process the processed BATCH for insertion to avoid overwriting existing DB records with shallow data
+    const recentStories = batch.filter(story => story.timestamp >= sevenDaysAgo);
 
     // We expect correct timestamps now, so filter vigorously
     // If a story still has 'Recent' (from fallback because fetch failed), we technically keep it but it might have empty time string if source was GhanaWeb.
