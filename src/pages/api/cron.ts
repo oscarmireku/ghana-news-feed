@@ -619,10 +619,84 @@ async function scrapeDailyGuide(): Promise<{ stories: Article[], logs: string[] 
 }
 
 // ---------------------------------------------------------------------------
+// Source: CitiNewsRoom (HTML Scrape Sections)
+// ---------------------------------------------------------------------------
+async function scrapeCitiNewsRoom(): Promise<Story[]> {
+    const sections = [
+        { name: 'News', url: 'https://citinewsroom.com/news/' },
+        { name: 'Business', url: 'https://citinewsroom.com/category/business/' },
+        { name: 'Politics', url: 'https://citinewsroom.com/category/politics/' },
+        { name: 'Entertainment', url: 'https://citinewsroom.com/category/entertainment/' },
+        { name: 'Regional', url: 'https://citinewsroom.com/category/regional-news/' },
+        { name: 'Sports', url: 'https://citisportsonline.com/' }
+    ];
+
+    const stories: Story[] = [];
+    const seenLinks = new Set<string>();
+
+    await Promise.all(sections.map(async (sec) => {
+        try {
+            const res = await fetch(sec.url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+            const html = await res.text();
+            const $ = cheerio.load(html);
+
+            const articles = $('.jeg_post');
+
+            articles.slice(0, 15).each((_, el) => {
+                const titleEl = $(el).find('.jeg_post_title a').first();
+                const link = titleEl.attr('href');
+                let title = titleEl.text().trim();
+
+                let image = $(el).find('.jeg_thumb img').attr('data-src') ||
+                    $(el).find('.jeg_thumb img').attr('src');
+
+                // Handle lazy loading image variants
+                if (!image) {
+                    const srcset = $(el).find('.jeg_thumb img').attr('data-srcset');
+                    if (srcset) {
+                        const parts = srcset.split(',');
+                        if (parts.length > 0) {
+                            image = parts[parts.length - 1].trim().split(' ')[0];
+                        }
+                    }
+                }
+
+                let dateStr = $(el).find('.jeg_meta_date').text().trim();
+                const { timestamp, display } = parsePublicationDate(dateStr);
+
+                if (link && title && title.length > 5 && !seenLinks.has(link)) {
+                    seenLinks.add(link);
+
+                    // Specific section from article if available, otherwise generic section
+                    let category = $(el).find('.jeg_post_category span a').text().trim();
+                    if (!category) category = sec.name;
+
+                    stories.push({
+                        id: `citi-${stories.length + Math.random()}`,
+                        source: 'CitiNewsRoom',
+                        title,
+                        link: link,
+                        image: image || null,
+                        time: display,
+                        timestamp,
+                        section: category
+                    });
+                }
+            });
+        } catch (e) {
+            console.error(`CitiNewsRoom ${sec.name} Error:`, e);
+        }
+    }));
+
+    return stories;
+}
+
+// ---------------------------------------------------------------------------
 // Source: Generic RSS Scraper
 // ---------------------------------------------------------------------------
 const GENERIC_FEEDS = [
-    { source: 'CitiNewsRoom', url: 'https://citinewsroom.com/feed/', section: 'News' },
+    // CitiNewsRoom moved to dedicated scraper
+    { source: 'Modern Ghana', url: 'https://www.modernghana.com/rssfeed/news.xml', section: 'News' },
     { source: 'Modern Ghana', url: 'https://www.modernghana.com/rssfeed/news.xml', section: 'News' },
     { source: 'GNA', url: 'https://gna.org.gh/feed/', section: 'News' },
     { source: 'Graphic Online', url: 'https://www.graphic.com.gh/news/general-news?format=feed', section: 'News' },
@@ -743,19 +817,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log('CRON: Starting scrape...');
 
-    const [ghanaStories, adomStories, peaceStories, joyStories, threeNewsStories, dailyGuideResult, genericStories] = await Promise.all([
+    const [ghanaStories, adomStories, peaceStories, joyStories, threeNewsStories, dailyGuideResult, citiStories, genericStories] = await Promise.all([
         scrapeGhanaWeb(),
         scrapeAdomOnline(),
         scrapePeaceFM(),
         scrapeMyJoyOnline(),
         scrape3News(),
         scrapeDailyGuide(),
+        scrapeCitiNewsRoom(),
         scrapeGenericRSS()
     ]);
 
     const dailyGuideStories = dailyGuideResult.stories;
 
-    let allStories = [...ghanaStories, ...adomStories, ...peaceStories, ...joyStories, ...threeNewsStories, ...dailyGuideStories, ...genericStories];
+    let allStories = [...ghanaStories, ...adomStories, ...peaceStories, ...joyStories, ...threeNewsStories, ...dailyGuideStories, ...citiStories, ...genericStories];
 
     // Deduplicate by link
     const uniqueMap = new Map();

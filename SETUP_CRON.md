@@ -19,11 +19,17 @@ We have updated your GitHub Workflow to listen for a `repository_dispatch` event
    - **HTTP Method:** `POST`
    - **Headers:** (Click the + or "Add Header" button intentionally)
      - Key: `Authorization` | Value: `Bearer YOUR_COPIED_TOKEN_HERE`
-     - Key: `Accept` | Value: `application/vnd.github.v3+json`
-     - Key: `User-Agent` | Value: `NewsScraper`
+     - Key: `Content-Type`  | Value: `application/json`
+     - Key: `Accept`        | Value: `application/vnd.github.v3+json`
+     - Key: `User-Agent`    | Value: `NewsScraper`
    - **Request Body:**
      - Type: `JSON`
-     - Content: `{"event_type": "trigger-scrape"}`
+     - Content:
+       Copy and paste *exactly* this line (ensure you use double quotes `"`):
+       ```json
+       {"event_type": "trigger-scrape"}
+       ```
+       > **Warning:** Do not copy the backticks (```) or use single quotes ('). It must be valid JSON.
 
 ## Step 3: Test
 1. Click "Test Run" on Cron-Job.org.
