@@ -657,9 +657,8 @@ const GENERIC_FEEDS = [
     { source: 'Tech Labari', url: 'https://techlabari.com/feed/', section: 'Tech' },
     { source: 'News Ghana', url: 'https://newsghana.com.gh/feed/', section: 'News' },
 
-
     { source: 'DailyGuide', url: 'https://dailyguidenetwork.com/feed/', section: 'News' },
-    { source: 'CitiNewsRoom', url: 'https://citinewsroom.com/feed/', section: 'News' },
+    // CitiNewsRoom moved to dedicated scraper
     { source: 'Modern Ghana', url: 'https://www.modernghana.com/rssfeed/news.xml', section: 'News' },
     { source: 'GNA', url: 'https://gna.org.gh/feed/', section: 'News' },
     { source: 'Graphic Online', url: 'https://www.graphic.com.gh/news/general-news?format=feed', section: 'News' },
@@ -680,7 +679,82 @@ const GENERIC_FEEDS = [
 ];
 
 
+// ---------------------------------------------------------------------------
+// Source: CitiNewsRoom (HTML Scrape Sections)
+// ---------------------------------------------------------------------------
+async function scrapeCitiNewsRoom(): Promise<Story[]> {
+    const sections = [
+        { name: 'News', url: 'https://citinewsroom.com/news/' },
+        { name: 'Business', url: 'https://citinewsroom.com/category/business/' },
+        { name: 'Politics', url: 'https://citinewsroom.com/category/politics/' },
+        { name: 'Entertainment', url: 'https://citinewsroom.com/category/entertainment/' },
+        { name: 'Regional', url: 'https://citinewsroom.com/category/regional-news/' },
+        { name: 'Sports', url: 'https://citisportsonline.com/' }
+    ];
 
+    const stories: Story[] = [];
+    const seenLinks = new Set<string>();
+
+    await Promise.all(sections.map(async (sec) => {
+        try {
+            const res = await rateLimitedFetch(sec.url, { skipCache: true });
+            if (!res.ok) {
+                console.error(`CitiNewsRoom ${sec.name}: Failed to fetch. Status: ${res.status}`);
+                return;
+            }
+            const html = await res.text();
+            const $ = cheerio.load(html);
+
+            const articles = $('.jeg_post');
+
+            articles.slice(0, 15).each((_, el) => {
+                const titleEl = $(el).find('.jeg_post_title a').first();
+                const link = titleEl.attr('href');
+                let title = titleEl.text().trim();
+
+                let image = $(el).find('.jeg_thumb img').attr('data-src') ||
+                    $(el).find('.jeg_thumb img').attr('src');
+
+                // Handle lazy loading image variants
+                if (!image) {
+                    const srcset = $(el).find('.jeg_thumb img').attr('data-srcset');
+                    if (srcset) {
+                        const parts = srcset.split(',');
+                        if (parts.length > 0) {
+                            image = parts[parts.length - 1].trim().split(' ')[0];
+                        }
+                    }
+                }
+
+                let dateStr = $(el).find('.jeg_meta_date').text().trim();
+                const { timestamp, display } = parsePublicationDate(dateStr);
+
+                if (link && title && title.length > 5 && !seenLinks.has(link)) {
+                    seenLinks.add(link);
+
+                    // Specific section from article if available, otherwise generic section
+                    let category = $(el).find('.jeg_post_category span a').text().trim();
+                    if (!category) category = sec.name;
+
+                    stories.push({
+                        id: `citi-${stories.length + Math.random()}`,
+                        source: 'CitiNewsRoom',
+                        title,
+                        link: link,
+                        image: image || null,
+                        time: display,
+                        timestamp,
+                        section: category
+                    });
+                }
+            });
+        } catch (e) {
+            console.error(`CitiNewsRoom ${sec.name} Error:`, e);
+        }
+    }));
+
+    return stories;
+}
 
 
 
@@ -885,16 +959,17 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 async function main() {
     console.log('SCRAPER: Starting job...');
 
-    const [gwStories, adomStories, peaceStories, joyStories, gsnStories, genericStories] = await Promise.all([
+    const [gwStories, adomStories, peaceStories, joyStories, citiStories, gsnStories, genericStories] = await Promise.all([
         scrapeGhanaWeb(),
         scrapeAdomOnline(),
         scrapePeaceFM(),
         scrapeMyJoyOnline(),
+        scrapeCitiNewsRoom(),
         scrapeGhanaSoccerNet(),
         scrapeGenericRSS()
     ]);
 
-    let allStories = [...gwStories, ...adomStories, ...peaceStories, ...joyStories, ...gsnStories, ...genericStories];
+    let allStories = [...gwStories, ...adomStories, ...peaceStories, ...joyStories, ...citiStories, ...gsnStories, ...genericStories];
 
     console.log(`SCRAPER: Fetched ${allStories.length} raw stories.`);
     console.log(`SCRAPER: Fetched ${allStories.length} raw stories.`);
