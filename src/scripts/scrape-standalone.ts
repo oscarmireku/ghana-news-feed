@@ -1017,10 +1017,12 @@ async function main() {
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
     // Deep Fetch Metadata for NEW articles
-    console.log(`SCRAPER: Fetching metadata for ${newStories.length} new articles...`);
+    // LIMIT to 25 to prevent GitHub Actions timeout (15 mins) when processing many articles
+    const batch = newStories.slice(0, 25);
+    console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles (limited from ${newStories.length})...`);
 
     // Process sequentially to be extremely gentle and avoid blocks
-    for (const story of newStories) {
+    for (const story of batch) {
         if (story.source === 'GhanaSoccerNet') continue; // GSN already fetches full details
         try {
             const metadata = await fetchArticleMetadata(story.link, story.source);
