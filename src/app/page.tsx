@@ -109,8 +109,9 @@ export default function Home() {
 
   useEffect(() => {
     fetchNews();
-    const interval = setInterval(() => fetchNews(), 300000); // Live update every 5 minutes
-    return () => clearInterval(interval);
+    // Auto-refresh disabled to save resources
+    // const interval = setInterval(() => fetchNews(), 300000); 
+    // return () => clearInterval(interval);
   }, [fetchNews]);
 
   return (
