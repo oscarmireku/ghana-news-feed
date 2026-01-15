@@ -2,7 +2,9 @@ name: News Scraper
 
 on:
   schedule:
-    - cron: '7/10 * * * *' # Run every 10 minutes (offset by 7 to avoid high-load traffic)
+    - cron: '7/10 * * * *' # Keep generic fallback
+  repository_dispatch:
+    types: [trigger-scrape]
   workflow_dispatch: # Allow manual trigger
   push:
     branches:
