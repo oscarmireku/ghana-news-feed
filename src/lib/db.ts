@@ -95,10 +95,10 @@ export async function insertArticles(articles: Article[]): Promise<number> {
   }
 }
 
-export async function getAllArticles(limit: number = 500): Promise<Article[]> {
+export async function getAllArticles(limit: number = 500, includeContent: boolean = false): Promise<Article[]> {
   const rs = await db.execute({
     sql: `
-      SELECT id, source, title, link, image, time, section, timestamp, content
+      SELECT id, source, title, link, image, time, section, timestamp${includeContent ? ', content' : ''}
       FROM articles
       WHERE image IS NOT NULL AND image != ''
       ORDER BY timestamp DESC

@@ -87,7 +87,9 @@ export default function Home() {
 
       // Note: We no longer trigger /api/cron here as it is handled by GitHub Actions
 
-      const res = await fetch('/api/news', { cache: 'no-store' });
+      // Fetch without content field to save bandwidth (content=false)
+      // Remove cache: 'no-store' to allow Vercel Data Cache to work
+      const res = await fetch('/api/news?content=false');
       if (!res.ok) {
         throw new Error(`Failed to fetch news: ${res.status} ${res.statusText}`);
       }
