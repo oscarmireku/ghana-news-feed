@@ -125,7 +125,7 @@ function timeAgo(timestamp: number): string {
 
 
 // Fallback: Fetch article page to find og:image and parsing date
-export async function fetchArticleMetadata(link: string, source?: string): Promise<{ image: string | null, timestamp?: number, time?: string, content?: string }> {
+export async function fetchArticleMetadata(link: string, source: string): Promise<Partial<Story>> {
     try {
         // Special handling for PeaceFM API
         if (source === 'PeaceFM' || link.includes('peacefmonline.com')) {
