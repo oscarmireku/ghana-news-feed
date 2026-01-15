@@ -459,7 +459,7 @@ async function scrapePeaceFM(): Promise<Story[]> {
             const link = `https://www.peacefmonline.com/article/${item.article_id}-${item.slug}`;
 
             return {
-                id: `peace-${item.article_id}`, // Use actual ID for stability
+                id: `peace-${Math.random().toString(36).substring(2, 9)}`, // Use random ID to prevent collisions on link updates
                 source: 'PeaceFM',
                 title: item.main_title,
                 link: link,
@@ -549,7 +549,7 @@ async function scrapePeaceFM_HTML(): Promise<Story[]> {
                     const timestamp = new Date(fullItem.created_at).getTime();
 
                     stories.push({
-                        id: `peace-${fullItem.article_id}`,
+                        id: `peace-${Math.random().toString(36).substring(2, 9)}`,
                         source: 'PeaceFM',
                         title: fullItem.main_title,
                         link: link,
@@ -1055,15 +1055,20 @@ async function main() {
 
     // We expect correct timestamps now, so filter vigorously
     // If a story still has 'Recent' (from fallback because fetch failed), we technically keep it but it might have empty time string if source was GhanaWeb.
-    // Let's filter out stories with empty time string?
-    // No, better to show them than nothing, but user complained.
-    // If we re-run successfuly, they will have time.
 
     const storiesWithImages = recentStories.filter(story =>
         story.image !== null &&
         story.image !== '' &&
         !story.image.toLowerCase().endsWith('.svg')
     );
+    console.log(`SCRAPER: Image Filter Stats: Input=${recentStories.length}, Output=${storiesWithImages.length}, Dropped=${recentStories.length - storiesWithImages.length}`);
+
+    if (recentStories.length > storiesWithImages.length) {
+        const dropped = recentStories.filter(s => !storiesWithImages.includes(s));
+        console.log(`SCRAPER: Dropped ${dropped.length} articles due to missing/invalid images. Examples:`);
+        dropped.slice(0, 3).forEach(s => console.log(` - [${s.source}] ${s.title} (Img: ${s.image})`));
+    }
+
     console.log(`SCRAPER: Filtered invalid/no-image -> ${storiesWithImages.length} articles to insert`);
 
     const newArticlesCount = await insertArticles(storiesWithImages as Article[]);

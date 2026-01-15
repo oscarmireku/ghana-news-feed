@@ -52,14 +52,11 @@ export async function insertArticles(articles: Article[]): Promise<number> {
   if (articles.length === 0) return 0;
 
   let count = 0;
-  // LibSQL client doesn't support massive bulk inserts in one statement easily without constructing the string manually
-  // or using transactions nicely. 
-  // We can use a transaction.
 
-  const tx = await db.transaction('write');
-  try {
-    for (const article of articles) {
-      await tx.execute({
+  // We process individually to ensure one bad egg (duplicate ID) doesn't spoil the bunch
+  for (const article of articles) {
+    try {
+      await db.execute({
         sql: `
           INSERT INTO articles (id, source, title, link, image, time, section, timestamp, created_at, content)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -84,15 +81,16 @@ export async function insertArticles(articles: Article[]): Promise<number> {
         ]
       });
       count++;
+    } catch (err: any) {
+      if (err.code === 'SQLITE_CONSTRAINT') {
+        console.warn(`[DB] Skipped duplicate/conflict for ${article.title} (${article.id}):`, err.message);
+      } else {
+        console.error(`[DB] Error inserting ${article.title}:`, err);
+      }
     }
-    await tx.commit();
-    return count;
-
-  } catch (err) {
-    console.error('Error inserting articles:', err);
-    // Don't rollback explicitly, LibSQL client handles it or it just fails.
-    return 0;
   }
+
+  return count;
 }
 
 export async function getAllArticles(limit: number = 500, includeContent: boolean = false): Promise<Article[]> {
