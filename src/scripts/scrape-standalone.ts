@@ -912,14 +912,25 @@ async function scrapeGenericRSS(): Promise<Story[]> {
                     timeDisplay = parsed.display;
                 }
 
+                // Extract content
+                let contentRaw = $(el).find('content\\:encoded').text() || $(el).find('content').text();
+                // If content is empty or very short, try description, but description is often just a summary.
+                // However, some feeds put full content in description. Use judgment or preference?
+                // For now, let's prefer content:encoded.
+                if (!contentRaw || contentRaw.length < 50) {
+                    // Only use description if we didn't get good content:encoded
+                    const desc = $(el).find('description').text();
+                    if (desc && desc.length > contentRaw.length) contentRaw = desc;
+                }
+
                 let image = $(el).find('media\\:content').attr('url')?.trim() ||
                     $(el).find('media\\:thumbnail').attr('url')?.trim() ||
                     $(el).find('enclosure').attr('url')?.trim();
 
                 if (!image) {
                     // Try content for image
-                    const content = $(el).find('content\\:encoded').text() || $(el).find('content').text() || $(el).find('description').text();
-                    const match = content.match(/src="([^"]+)"/);
+                    const contentForImg = contentRaw || $(el).find('description').text();
+                    const match = contentForImg.match(/src="([^"]+)"/);
                     if (match) image = match[1]?.trim();
                 }
 
@@ -935,6 +946,17 @@ async function scrapeGenericRSS(): Promise<Story[]> {
                 if (category.toLowerCase().includes('news')) category = 'News';
                 else if (category.length > 20) category = category.substring(0, 20) + '...';
 
+                // Basic content cleanup if needed (remove CDATA wrapper which verify text() usually handles, but also ads/scripts)
+                let finalContent = undefined;
+                if (contentRaw && contentRaw.length > 100) {
+                    // Simple cleanup: remove script/style tags if we can, but text() might have stripped tags if we used .text().
+                    // Wait, cheerio .text() returns text content only? NO, .text() on XML CDATA returns the inner HTML usually?
+                    // Verify: $('item').find('content\\:encoded').text() returns the HTML string inside CDATA.
+                    // So we might want to sanitize it lightly or trust the client to render/sanitize. 
+                    // Our client inserts embeds.
+                    finalContent = contentRaw;
+                }
+
                 stories.push({
                     id: `${feed.source.toLowerCase().replace(/\s+/g, '')}-${stories.length + Math.random()}`,
                     source: feed.source,
@@ -943,7 +965,8 @@ async function scrapeGenericRSS(): Promise<Story[]> {
                     image: image || null,
                     time: timeDisplay,
                     timestamp,
-                    section: category || feed.section
+                    section: category || feed.section,
+                    content: finalContent
                 });
             });
 
@@ -1026,6 +1049,12 @@ async function main() {
 
     // Process sequentially to be extremely gentle and avoid blocks
     for (const story of batch) {
+        // Skip deep fetch if we already have content (e.g. from full RSS feeds)
+        if (story.content && story.content.length > 200 && story.image) {
+            console.log(`[SKIP] Skipping deep fetch for ${story.source} - Content & Image present.`);
+            continue;
+        }
+
         if (story.source === 'GhanaSoccerNet') continue; // GSN already fetches full details
         try {
             const metadata = await fetchArticleMetadata(story.link, story.source);
