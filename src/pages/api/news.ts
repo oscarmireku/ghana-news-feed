@@ -1,34 +1,45 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getAllArticles, getArticleCount } from '../../lib/db';
+import { getAllArticles, getArticlesSince, getArticleCount } from '../../lib/db';
 import zlib from 'zlib';
 import { promisify } from 'util';
 
 const gzip = promisify(zlib.gzip);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    // Get limit from query
-    const { limit: limitParam, content: contentParam } = req.query;
+    // Get parameters from query
+    const { limit: limitParam, content: contentParam, since: sinceParam } = req.query;
     // Default to 50 (was 1000) to save massive bandwidth for Android app
     const limit = limitParam ? parseInt(limitParam as string) : 50;
 
     // Default to true for backward compatibility with Android app
     const includeContent = contentParam !== 'false';
 
+    // Parse 'since' timestamp for incremental sync
+    const since = sinceParam ? parseInt(sinceParam as string) : null;
+
     try {
-        const [allStories, total] = await Promise.all([
-            getAllArticles(limit, includeContent),
-            getArticleCount()
-        ]);
+        let allStories;
+
+        if (since && !isNaN(since)) {
+            // Incremental sync: fetch only articles newer than 'since' timestamp
+            allStories = await getArticlesSince(since, limit, includeContent);
+        } else {
+            // Full fetch: existing behavior
+            allStories = await getAllArticles(limit, includeContent);
+        }
+
+        const total = await getArticleCount();
 
         // Filter out GhanaWeb articles (REMOVED: User requested to show them again)
         const stories = allStories;
 
-        // Dynamic caching strategy based on time of day (GMT)
+        // Dynamic caching strategy based on time of day (GMT) and request type
+        // Incremental sync requests: Cache for 5 minutes (300s) - more time-sensitive
         // 10 PM to 5 AM (Overnight): Cache for 1 hour (3600s)
         // 5 AM to 10 PM (Daytime): Cache for 20 minutes (1200s)
         const currentHour = new Date().getUTCHours();
         const isOffPeak = currentHour >= 22 || currentHour < 5;
-        const cacheTime = isOffPeak ? 3600 : 1200;
+        const cacheTime = since ? 300 : (isOffPeak ? 3600 : 1200);
 
         res.setHeader('Cache-Control', `s-maxage=${cacheTime}, stale-while-revalidate=60`);
 

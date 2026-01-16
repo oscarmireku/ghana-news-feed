@@ -109,6 +109,27 @@ export async function getAllArticles(limit: number = 500, includeContent: boolea
   return rs.rows as unknown as Article[];
 }
 
+export async function getArticlesSince(
+  sinceTimestamp: number,
+  limit: number = 500,
+  includeContent: boolean = false
+): Promise<Article[]> {
+  const rs = await db.execute({
+    sql: `
+      SELECT id, source, title, link, image, time, section, timestamp${includeContent ? ', content' : ''}
+      FROM articles
+      WHERE image IS NOT NULL 
+        AND image != ''
+        AND timestamp > ?
+      ORDER BY timestamp DESC
+      LIMIT ?
+    `,
+    args: [sinceTimestamp, limit]
+  });
+
+  return rs.rows as unknown as Article[];
+}
+
 export async function getArticleCount(): Promise<number> {
   const rs = await db.execute('SELECT COUNT(*) as count FROM articles');
   return Number(rs.rows[0].count);
