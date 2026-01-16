@@ -60,7 +60,13 @@ interface Story {
 function isDuplicateStory(newStory: Story, existingStories: Story[], threshold = 0.7): boolean {
     return existingStories.some(existing => {
         const similarity = titleSimilarity(newStory.title, existing.title);
-        return similarity >= threshold;
+        if (similarity >= threshold) {
+            if (['MyJoyOnline', 'Nkonkonsa', 'AdomOnline'].includes(newStory.source)) {
+                console.log(`[DUPLICATE] Dropping ${newStory.source} "${newStory.title}" -> Match: "${existing.title}" (${(similarity * 100).toFixed(1)}%)`);
+            }
+            return true;
+        }
+        return false;
     });
 }
 
@@ -103,8 +109,8 @@ function parsePublicationDate(dateStr: string): { timestamp: number; display: st
         return { timestamp, display };
     }
 
-    // If we can't parse it, return current time
-    return { timestamp: Date.now(), display: 'Recent' };
+    // If we can't parse it, return 0 so it gets filtered out instead of floating to top
+    return { timestamp: 0, display: 'Recent' };
 }
 
 function timeAgo(timestamp: number): string {
@@ -1006,15 +1012,17 @@ async function main() {
     allStories = Array.from(uniqueMap.values());
 
     // Fuzzy deduplication: Remove stories with similar titles (same story from different sources)
+    // DISABLED: User reports missing feeds. We want to keep all sources populated even if titles match.
+    // Ideally we would group them in the UI, but for now, we prioritize availability.
     const deduplicatedStories: Story[] = [];
     let duplicatesRemoved = 0;
 
     for (const story of allStories) {
-        if (!isDuplicateStory(story, deduplicatedStories, 0.75)) {
-            deduplicatedStories.push(story);
-        } else {
-            duplicatesRemoved++;
-        }
+        // if (!isDuplicateStory(story, deduplicatedStories, 0.75)) {
+        deduplicatedStories.push(story);
+        // } else {
+        //     duplicatesRemoved++;
+        // }
     }
 
     allStories = deduplicatedStories;
@@ -1038,13 +1046,19 @@ async function main() {
     // So let's include articles that match existingLinks IF their source is MyJoyOnline and we want to retry metadata.
 
     // Filter out articles we already have
-    const newStories = allStories.filter(story => !existingLinks.has(story.link));
+    const newStories = allStories.filter(story => {
+        const exists = existingLinks.has(story.link);
+        if (exists && ['MyJoyOnline', 'Nkonkonsa'].includes(story.source)) {
+            console.log(`[EXISTING] Skipping ${story.source}: ${story.title}`);
+        }
+        return !exists;
+    });
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
     // Deep Fetch Metadata for NEW articles
-    // LIMIT to 25 to prevent GitHub Actions timeout (15 mins) when processing many articles
-    const batch = newStories.slice(0, 25);
+    // INCREASED LIMIT to 100 to prevent clogging by failing articles
+    const batch = newStories.slice(0, 100);
     console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles (limited from ${newStories.length})...`);
 
     // Process sequentially to be extremely gentle and avoid blocks
@@ -1098,7 +1112,7 @@ async function main() {
     if (recentStories.length > storiesWithImages.length) {
         const dropped = recentStories.filter(s => !storiesWithImages.includes(s));
         console.log(`SCRAPER: Dropped ${dropped.length} articles due to missing/invalid images. Examples:`);
-        dropped.slice(0, 3).forEach(s => console.log(` - [${s.source}] ${s.title} (Img: ${s.image})`));
+        dropped.forEach(s => console.log(` - [${s.source}] ${s.title} (Img: ${s.image})`));
     }
 
     console.log(`SCRAPER: Filtered invalid/no-image -> ${storiesWithImages.length} articles to insert`);
