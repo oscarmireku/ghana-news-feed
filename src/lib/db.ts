@@ -185,11 +185,12 @@ export async function deleteInvalidArticles(): Promise<number> {
 
   let count = 0;
   try {
+    // REMOVED: Deletion of articles without images
+    // This was causing valid articles from feeds like ZionFelix, YFM Ghana to be deleted
+    // Only delete SVG images which are usually logos/icons, not article images
     const badImageResult = await db.execute(`
       DELETE FROM articles 
-      WHERE image IS NULL 
-         OR image = '' 
-         OR image LIKE '%.svg%'
+      WHERE image LIKE '%.svg%'
          OR image LIKE '%.svg?%'
     `);
     count += badImageResult.rowsAffected;
