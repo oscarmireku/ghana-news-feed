@@ -613,12 +613,8 @@ async function scrapePeaceFM_HTML(): Promise<Story[]> {
 const GENERIC_FEEDS = [
     { source: '3News', url: 'https://3news.com/feed/', section: 'News' },
     { source: 'Tech Labari', url: 'https://techlabari.com/feed/', section: 'Tech' },
-    { source: 'News Ghana', url: 'https://newsghana.com.gh/feed/', section: 'News' },
-
     { source: 'DailyGuide', url: 'https://dailyguidenetwork.com/feed/', section: 'News' },
     // CitiNewsRoom moved to dedicated scraper
-    { source: 'Modern Ghana', url: 'https://www.modernghana.com/rssfeed/news.xml', section: 'News' },
-    { source: 'GNA', url: 'https://gna.org.gh/feed/', section: 'News' },
     { source: 'Graphic Online', url: 'https://www.graphic.com.gh/news/general-news?format=feed', section: 'News' },
     { source: 'Ghanaian Times', url: 'https://www.ghanaiantimes.com.gh/feed/', section: 'News' },
     { source: 'Starr FM', url: 'https://starrfm.com.gh/feed/', section: 'News' },
