@@ -10,6 +10,7 @@ if (!process.env.TURSO_DATABASE_URL && process.env.CI) {
 import * as cheerio from 'cheerio';
 import { insertArticles, deleteOldArticles, deleteInvalidArticles, getAllLinks, getLatestTimestampsBySource, Article } from '../lib/db';
 import { rateLimitedFetch } from '../lib/rate-limited-fetch';
+import { fetchRSS, NewsItem } from '../lib/rss';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -601,72 +602,7 @@ async function scrapePeaceFM_HTML(): Promise<Story[]> {
 // ---------------------------------------------------------------------------
 // Source: MyJoyOnline (RSS Feed)
 // ---------------------------------------------------------------------------
-async function scrapeMyJoyOnline(): Promise<Story[]> {
-    const stories: Story[] = [];
-    const seenLinks = new Set<string>();
 
-    try {
-        const res = await rateLimitedFetch('https://www.myjoyonline.com/feed/', { skipCache: true });
-        if (!res.ok) throw new Error(`MyJoyOnline RSS failed: ${res.status}`);
-
-        const xml = await res.text();
-        const $ = cheerio.load(xml, { xmlMode: true });
-
-        $('item').slice(0, 15).each((_, el) => {
-            const title = $(el).find('title').text().trim();
-            const link = $(el).find('link').text().trim();
-            const pubDate = $(el).find('pubDate').text().trim();
-
-            if (seenLinks.has(link)) return;
-            seenLinks.add(link);
-
-            let timestamp = Date.now();
-            let timeDisplay = 'Recent';
-
-            if (pubDate) {
-                const parsed = parsePublicationDate(pubDate);
-                timestamp = parsed.timestamp;
-                timeDisplay = parsed.display;
-            }
-
-            let image = $(el).find('media\\:content').attr('url') ||
-                $(el).find('media\\:thumbnail').attr('url');
-
-            // Fallback image extraction from content:encoded
-            if (!image) {
-                const content = $(el).find('content\\:encoded').text();
-                const match = content.match(/src="([^"]+)"/);
-                if (match) image = match[1];
-            }
-
-            // Determine section from category tags
-            let section = 'News';
-            const categories: string[] = [];
-            $(el).find('category').each((_, cat) => {
-                categories.push($(cat).text().toLowerCase());
-            });
-
-            if (categories.some(c => c.includes('sport') || c.includes('football'))) section = 'Sports';
-            else if (categories.some(c => c.includes('business') || c.includes('economy'))) section = 'Business';
-            else if (categories.some(c => c.includes('entertainment') || c.includes('showbiz'))) section = 'Entertainment';
-
-            stories.push({
-                id: `joy-${stories.length + Math.random()}`,
-                source: 'MyJoyOnline',
-                title,
-                link,
-                image: image || null,
-                time: timeDisplay,
-                timestamp,
-                section
-            });
-        });
-    } catch (e) {
-        console.error('MyJoyOnline RSS Error:', e);
-    }
-
-    return stories;
-}
 
 
 
@@ -884,117 +820,49 @@ async function scrapeGhanaSoccerNet(): Promise<Story[]> {
 }
 
 
+
+// Helper to map NewsItem to Story
+function mapNewsItemsToStories(items: NewsItem[], defaultSection: string): Story[] {
+    return items.map((item, index) => {
+        let timestamp = Date.now();
+        let timeDisplay = 'Recent';
+        if (item.pubDate) {
+            const parsed = parsePublicationDate(item.pubDate);
+            timestamp = parsed.timestamp;
+            timeDisplay = parsed.display;
+        }
+
+        return {
+            id: `${item.source.toLowerCase().replace(/\s+/g, '')}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`,
+            source: item.source,
+            title: item.title,
+            link: item.link,
+            image: item.imageUrl || null,
+            time: timeDisplay,
+            timestamp,
+            section: item.category || defaultSection,
+            content: item.content
+        };
+    });
+}
+
+async function scrapeMyJoyOnline(): Promise<Story[]> {
+    console.log('SCRAPER: Scraping MyJoyOnline (RSS)...');
+    const items = await fetchRSS('https://www.myjoyonline.com/feed/', 'MyJoyOnline', 'News');
+    return mapNewsItemsToStories(items, 'News');
+}
+
 async function scrapeGenericRSS(): Promise<Story[]> {
-    const stories: Story[] = [];
+    console.log('SCRAPER: Scraping Generic RSS Feeds...');
+    const allStories: Story[] = [];
 
     await Promise.all(GENERIC_FEEDS.map(async (feed) => {
-        try {
-            const res = await rateLimitedFetch(feed.url, { skipCache: true });
-            if (!res.ok) return;
-
-            const xml = await res.text();
-            const $ = cheerio.load(xml, { xmlMode: true });
-
-            let items = $('item');
-            let isAtom = false;
-
-            if (items.length === 0) {
-                items = $('entry');
-                isAtom = true;
-            }
-
-            items.slice(0, 5).each((_, el) => {
-                const title = $(el).find('title').text().trim();
-
-                let link = '';
-                if (isAtom) {
-                    link = $(el).find('link').attr('href') || $(el).find('link').text().trim();
-                } else {
-                    link = $(el).find('link').text().trim();
-                    if (!link) link = $(el).find('guid').text().trim();
-                }
-
-                let pubDate = '';
-                if (isAtom) {
-                    pubDate = $(el).find('published').text() || $(el).find('updated').text();
-                } else {
-                    pubDate = $(el).find('pubDate').text().trim();
-                }
-
-                if (!link) return;
-
-                let timestamp = Date.now();
-                let timeDisplay = 'Recent';
-                if (pubDate) {
-                    const parsed = parsePublicationDate(pubDate);
-                    timestamp = parsed.timestamp;
-                    timeDisplay = parsed.display;
-                }
-
-                // Extract content
-                let contentRaw = $(el).find('content\\:encoded').text() || $(el).find('content').text();
-                // If content is empty or very short, try description, but description is often just a summary.
-                // However, some feeds put full content in description. Use judgment or preference?
-                // For now, let's prefer content:encoded.
-                if (!contentRaw || contentRaw.length < 50) {
-                    // Only use description if we didn't get good content:encoded
-                    const desc = $(el).find('description').text();
-                    if (desc && desc.length > contentRaw.length) contentRaw = desc;
-                }
-
-                let image = $(el).find('media\\:content').attr('url')?.trim() ||
-                    $(el).find('media\\:thumbnail').attr('url')?.trim() ||
-                    $(el).find('enclosure').attr('url')?.trim();
-
-                if (!image) {
-                    // Try content for image
-                    const contentForImg = contentRaw || $(el).find('description').text();
-                    const match = contentForImg.match(/src="([^"]+)"/);
-                    if (match) image = match[1]?.trim();
-                }
-
-
-                let category = '';
-                if (isAtom) {
-                    category = $(el).find('category').attr('term') ||
-                        $(el).find('category').attr('label') || '';
-                } else {
-                    category = $(el).find('category').first().text().trim();
-                }
-
-                if (category.toLowerCase().includes('news')) category = 'News';
-                else if (category.length > 20) category = category.substring(0, 20) + '...';
-
-                // Basic content cleanup if needed (remove CDATA wrapper which verify text() usually handles, but also ads/scripts)
-                let finalContent = undefined;
-                if (contentRaw && contentRaw.length > 100) {
-                    // Simple cleanup: remove script/style tags if we can, but text() might have stripped tags if we used .text().
-                    // Wait, cheerio .text() returns text content only? NO, .text() on XML CDATA returns the inner HTML usually?
-                    // Verify: $('item').find('content\\:encoded').text() returns the HTML string inside CDATA.
-                    // So we might want to sanitize it lightly or trust the client to render/sanitize. 
-                    // Our client inserts embeds.
-                    finalContent = contentRaw;
-                }
-
-                stories.push({
-                    id: `${feed.source.toLowerCase().replace(/\s+/g, '')}-${stories.length + Math.random()}`,
-                    source: feed.source,
-                    title,
-                    link,
-                    image: image || null,
-                    time: timeDisplay,
-                    timestamp,
-                    section: category || feed.section,
-                    content: finalContent
-                });
-            });
-
-        } catch (e) {
-            console.error(`Generic RSS ${feed.source} Error:`, e);
-        }
+        const items = await fetchRSS(feed.url, feed.source, feed.section);
+        const stories = mapNewsItemsToStories(items, feed.section);
+        allStories.push(...stories);
     }));
 
-    return stories;
+    return allStories;
 }
 
 // ---------------------------------------------------------------------------
