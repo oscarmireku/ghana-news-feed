@@ -856,10 +856,17 @@ async function scrapeGenericRSS(): Promise<Story[]> {
     console.log('SCRAPER: Scraping Generic RSS Feeds...');
     const allStories: Story[] = [];
 
+    // Process each feed with individual error handling to prevent cascade failures
     await Promise.all(GENERIC_FEEDS.map(async (feed) => {
-        const items = await fetchRSS(feed.url, feed.source, feed.section);
-        const stories = mapNewsItemsToStories(items.slice(0, 20), feed.section);
-        allStories.push(...stories);
+        try {
+            const items = await fetchRSS(feed.url, feed.source, feed.section);
+            const stories = mapNewsItemsToStories(items.slice(0, 20), feed.section);
+            allStories.push(...stories);
+            console.log(`[SUCCESS] ${feed.source}: Fetched ${stories.length} articles`);
+        } catch (error) {
+            console.error(`[FAILED] ${feed.source}: ${(error as Error).message}`);
+            // Continue with other feeds even if this one fails
+        }
     }));
 
     return allStories;
@@ -940,11 +947,11 @@ async function main() {
 
         // Incremental Scraping Check:
         // Use the per-source latest timestamp to filter out old news.
-        // Safety margin: 1 hour (3600000ms) to allow for minor clock diffs or updates.
+        // Safety margin: 2 hours (7200000ms) to allow for clock diffs, republished content, and parsing errors.
         // If story.timestamp is 0 or Date.now() (fallback), we let it through to be deeper checked.
         // Only filter if we have a valid timestamp on the story AND in the DB.
         const lastSeen = sourceTimestamps.get(story.source) || 0;
-        if (lastSeen > 0 && story.timestamp > 0 && story.timestamp < (lastSeen - 3600000)) {
+        if (lastSeen > 0 && story.timestamp > 0 && story.timestamp < (lastSeen - 7200000)) {
             // console.log(`[OLD] Dropping ${story.source} - ${story.title} (Time: ${new Date(story.timestamp).toISOString()} vs Last: ${new Date(lastSeen).toISOString()})`);
             return false;
         }
@@ -1003,25 +1010,13 @@ async function main() {
     // CRITICAL FIX: Only process the processed BATCH for insertion to avoid overwriting existing DB records with shallow data
     const recentStories = batch.filter(story => story.timestamp >= sevenDaysAgo);
 
-    // We expect correct timestamps now, so filter vigorously
-    // If a story still has 'Recent' (from fallback because fetch failed), we technically keep it but it might have empty time string if source was GhanaWeb.
+    // REMOVED STRICT IMAGE FILTER: Allow articles without images to ensure all feeds populate
+    // This was causing many valid articles to be dropped, especially from feeds like ZionFelix, YFM Ghana, etc.
+    const validStories = recentStories;
 
-    const storiesWithImages = recentStories.filter(story =>
-        story.image !== null &&
-        story.image !== '' &&
-        !story.image.toLowerCase().endsWith('.svg')
-    );
-    console.log(`SCRAPER: Image Filter Stats: Input=${recentStories.length}, Output=${storiesWithImages.length}, Dropped=${recentStories.length - storiesWithImages.length}`);
+    console.log(`SCRAPER: Validation Stats: Input=${recentStories.length}, Output=${validStories.length}, Dropped=${recentStories.length - validStories.length}`);
 
-    if (recentStories.length > storiesWithImages.length) {
-        const dropped = recentStories.filter(s => !storiesWithImages.includes(s));
-        console.log(`SCRAPER: Dropped ${dropped.length} articles due to missing/invalid images. Examples:`);
-        dropped.forEach(s => console.log(` - [${s.source}] ${s.title} (Img: ${s.image})`));
-    }
-
-    console.log(`SCRAPER: Filtered invalid/no-image -> ${storiesWithImages.length} articles to insert`);
-
-    const newArticlesCount = await insertArticles(storiesWithImages as Article[]);
+    const newArticlesCount = await insertArticles(validStories as Article[]);
     console.log(`SCRAPER: Added ${newArticlesCount} new articles`);
 
     const deletedInvalid = await deleteInvalidArticles();
