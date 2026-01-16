@@ -146,6 +146,17 @@ export async function getAllLinks(): Promise<Set<string>> {
   return links;
 }
 
+export async function getLatestTimestampsBySource(): Promise<Map<string, number>> {
+  const rs = await db.execute('SELECT source, MAX(timestamp) as max_time FROM articles GROUP BY source');
+  const map = new Map<string, number>();
+  for (const row of rs.rows) {
+    if (typeof row.source === 'string' && typeof row.max_time === 'number') {
+      map.set(row.source, row.max_time);
+    }
+  }
+  return map;
+}
+
 
 export async function deleteOldArticles(limit: number): Promise<number> {
   // SQLite doesn't support DELETE ... LIMIT directly in all versions, 

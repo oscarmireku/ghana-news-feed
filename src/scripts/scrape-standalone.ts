@@ -8,7 +8,7 @@ if (!process.env.TURSO_DATABASE_URL && process.env.CI) {
 }
 
 import * as cheerio from 'cheerio';
-import { insertArticles, deleteOldArticles, deleteInvalidArticles, getAllLinks, Article } from '../lib/db';
+import { insertArticles, deleteOldArticles, deleteInvalidArticles, getAllLinks, getLatestTimestampsBySource, Article } from '../lib/db';
 import { rateLimitedFetch } from '../lib/rate-limited-fetch';
 
 // ---------------------------------------------------------------------------
@@ -1047,7 +1047,10 @@ async function main() {
     // Get existing links from database to skip already-processed articles
     // Note: getAllLinks returns a Set<string>
     const existingLinks = await getAllLinks();
+    const sourceTimestamps = await getLatestTimestampsBySource();
+
     console.log(`SCRAPER: Database has ${existingLinks.size} existing articles`);
+    console.log('SCRAPER: Latest timestamps per source:', Object.fromEntries(sourceTimestamps));
 
     // Filter out articles we already have, UNLESS they have "Recent" time (bad parse) and we want to try fixing them.
     // We check if timestamp is within last 10 minutes of now AND display is 'Recent' (heuristic for bad parse or just fresh)
@@ -1062,9 +1065,23 @@ async function main() {
     const newStories = allStories.filter(story => {
         const exists = existingLinks.has(story.link);
         if (exists && ['MyJoyOnline', 'Nkonkonsa'].includes(story.source)) {
-            console.log(`[EXISTING] Skipping ${story.source}: ${story.title}`);
+            // console.log(`[EXISTING] Skipping ${story.source}: ${story.title}`);
         }
-        return !exists;
+
+        if (exists) return false;
+
+        // Incremental Scraping Check:
+        // Use the per-source latest timestamp to filter out old news.
+        // Safety margin: 1 hour (3600000ms) to allow for minor clock diffs or updates.
+        // If story.timestamp is 0 or Date.now() (fallback), we let it through to be deeper checked.
+        // Only filter if we have a valid timestamp on the story AND in the DB.
+        const lastSeen = sourceTimestamps.get(story.source) || 0;
+        if (lastSeen > 0 && story.timestamp > 0 && story.timestamp < (lastSeen - 3600000)) {
+            // console.log(`[OLD] Dropping ${story.source} - ${story.title} (Time: ${new Date(story.timestamp).toISOString()} vs Last: ${new Date(lastSeen).toISOString()})`);
+            return false;
+        }
+
+        return true;
     });
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
