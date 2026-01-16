@@ -110,6 +110,19 @@ function parsePublicationDate(dateStr: string): { timestamp: number; display: st
     }
 
     // If we can't parse it, return 0 so it gets filtered out instead of floating to top
+    // Try without GMT if GMT append failed
+    const d2 = new Date(dateStr.trim());
+    if (!isNaN(d2.getTime())) {
+        const timestamp = d2.getTime();
+        const display = new Date(timestamp).toLocaleString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            month: 'short',
+            day: 'numeric'
+        });
+        return { timestamp, display };
+    }
+
     return { timestamp: 0, display: 'Recent' };
 }
 
@@ -1057,8 +1070,8 @@ async function main() {
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
     // Deep Fetch Metadata for NEW articles
-    // INCREASED LIMIT to 100 to prevent clogging by failing articles
-    const batch = newStories.slice(0, 100);
+    // INCREASED LIMIT to 30 (reduced from 100) to prevent GHA timeouts (~15 mins limit)
+    const batch = newStories.slice(0, 30);
     console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles (limited from ${newStories.length})...`);
 
     // Process sequentially to be extremely gentle and avoid blocks
