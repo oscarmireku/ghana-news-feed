@@ -1,0 +1,41 @@
+﻿Checking MyJoyOnline timestamps...
+
+=== MyJoyOnline (Latest 5) ===
+Title: 
+Time field: Jan 14, 2:42 PM
+Timestamp: 1768416135000 (2026-01-14T18:42:15.000Z)
+---
+Title: US announces start of phase two of Gaza peace plan
+Time field: Jan 14, 2:21 PM
+Timestamp: 1768414892000 (2026-01-14T18:21:32.000Z)
+---
+Title: PCM Capital Partners exits First Atlantic Bank through oversubscribed GSE IPO
+Time field: Jan 14, 2:10 PM
+Timestamp: 1768414240000 (2026-01-14T18:10:40.000Z)
+---
+Title: Choosing between marriage and church
+Time field: Jan 14, 1:38 PM
+Timestamp: 1768412308000 (2026-01-14T17:38:28.000Z)
+---
+Title: Oti Regional House of Chiefs pays courtesy call on NPA CEO
+Time field: Jan 14, 1:38 PM
+Timestamp: 1768412289000 (2026-01-14T17:38:09.000Z)
+---
+
+=== Searching for Gaza story ===
+[MyJoyOnline] US announces start of phase two of Gaza peace plan
+Time: Jan 14, 2:21 PM
+Timestamp: 1768414892000 (2026-01-14T18:21:32.000Z)
+---
+
+=== Overall Latest 10 ===
+[3News] 2026-01-14T22:23:23.000Z - NLC summons JUSAG, Finance Minister over strike action; urge...
+[3News] 2026-01-14T22:11:52.000Z - Chief Justice, A-G others pay courtesy call on Education Min...
+[3News] 2026-01-14T21:51:35.000Z - Free SHS was a constitutional mandate started by Nkrumah, no...
+[3News] 2026-01-14T21:20:34.000Z - Workers of Ghana Railway Company alarmed by sale of machiner...
+[3News] 2026-01-14T21:14:50.000Z - US freeze visa processing for Ghana and 74 other countries f...
+[3News] 2026-01-14T21:14:42.000Z - GIS deports foreign nationals jailed for illegal QNET activi...
+[3News] 2026-01-14T21:04:32.000Z - More buses for Accra! ≡ƒÜî Minister Joseph Nikpe orders Metro ...
+[3News] 2026-01-14T20:52:20.000Z - The dry and dusty season increases risk of Meningitis transm...
+[3News] 2026-01-14T20:45:45.000Z - Proven competence, earned trust: John MahamaΓÇÖs leadership...
+[3News] 2026-01-14T20:43:59.000Z - GTEC orders UG to strictly adhere to 2025/2026 academic fees...
