@@ -849,7 +849,7 @@ function mapNewsItemsToStories(items: NewsItem[], defaultSection: string): Story
 async function scrapeMyJoyOnline(): Promise<Story[]> {
     console.log('SCRAPER: Scraping MyJoyOnline (RSS)...');
     const items = await fetchRSS('https://www.myjoyonline.com/feed/', 'MyJoyOnline', 'News');
-    return mapNewsItemsToStories(items, 'News');
+    return mapNewsItemsToStories(items.slice(0, 20), 'News');
 }
 
 async function scrapeGenericRSS(): Promise<Story[]> {
@@ -858,7 +858,7 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 
     await Promise.all(GENERIC_FEEDS.map(async (feed) => {
         const items = await fetchRSS(feed.url, feed.source, feed.section);
-        const stories = mapNewsItemsToStories(items, feed.section);
+        const stories = mapNewsItemsToStories(items.slice(0, 20), feed.section);
         allStories.push(...stories);
     }));
 
