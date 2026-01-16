@@ -955,33 +955,39 @@ async function main() {
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
     // Deep Fetch Metadata for NEW articles
-    // INCREASED LIMIT to 30 (reduced from 100) to prevent GHA timeouts (~15 mins limit)
+    // Reverted to 30 but optimize with parallel processing
     const batch = newStories.slice(0, 30);
     console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles (limited from ${newStories.length})...`);
 
-    // Process sequentially to be extremely gentle and avoid blocks
-    for (const story of batch) {
-        // Skip deep fetch if we already have content (e.g. from full RSS feeds)
-        if (story.content && story.content.length > 200 && story.image) {
-            console.log(`[SKIP] Skipping deep fetch for ${story.source} - Content & Image present.`);
-            continue;
-        }
-
-        if (story.source === 'GhanaSoccerNet') continue; // GSN already fetches full details
-        try {
-            const metadata = await fetchArticleMetadata(story.link, story.source);
-            if (metadata.time) {
-                story.time = metadata.time;
-                story.timestamp = metadata.timestamp!;
-                story.content = metadata.content;
-                story.image = metadata.image || story.image;
-            } else {
-                if (story.source === 'GhanaWeb') console.error(`[FAILURE] No time returned for ${story.link}`);
+    // Process in chunks to speed up (Concurrency: 5)
+    // This reduces total wait time significantly compared to sequential processing
+    const chunk_size = 5;
+    for (let i = 0; i < batch.length; i += chunk_size) {
+        const chunk = batch.slice(i, i + chunk_size);
+        await Promise.all(chunk.map(async (story) => {
+            // Skip deep fetch if we already have content
+            if (story.content && story.content.length > 200 && story.image) {
+                console.log(`[SKIP] Skipping deep fetch for ${story.source} - Content & Image present.`);
+                return;
             }
-        } catch (e) {
-            console.error(`SCRAPER: Error fetching metadata for ${story.link}:`, e);
-        }
-        console.log(`Processing ${story.source} - ${story.title.substring(0, 20)}...`);
+
+            if (story.source === 'GhanaSoccerNet') return;
+
+            try {
+                const metadata = await fetchArticleMetadata(story.link, story.source);
+                if (metadata.time) {
+                    story.time = metadata.time;
+                    story.timestamp = metadata.timestamp!;
+                    story.content = metadata.content;
+                    story.image = metadata.image || story.image;
+                } else {
+                    if (story.source === 'GhanaWeb') console.error(`[FAILURE] No time returned for ${story.link}`);
+                }
+            } catch (e) {
+                console.error(`SCRAPER: Error fetching metadata for ${story.link}:`, e);
+            }
+            console.log(`Processing ${story.source} - ${story.title.substring(0, 20)}...`);
+        }));
     }
 
     allStories.sort((a, b) => b.timestamp - a.timestamp);
