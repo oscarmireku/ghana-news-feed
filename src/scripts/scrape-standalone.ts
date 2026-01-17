@@ -959,11 +959,11 @@ async function main() {
 
         // Incremental Scraping Check:
         // Use the per-source latest timestamp to filter out old news.
-        // Safety margin: 2 hours (7200000ms) to allow for clock diffs, republished content, and parsing errors.
+        // Safety margin: 1 hour (3600000ms) to allow for clock diffs, republished content, and parsing errors.
         // If story.timestamp is 0 or Date.now() (fallback), we let it through to be deeper checked.
         // Only filter if we have a valid timestamp on the story AND in the DB.
         const lastSeen = sourceTimestamps.get(story.source) || 0;
-        if (lastSeen > 0 && story.timestamp > 0 && story.timestamp < (lastSeen - 7200000)) {
+        if (lastSeen > 0 && story.timestamp > 0 && story.timestamp < (lastSeen - 3600000)) {
             // console.log(`[OLD] Dropping ${story.source} - ${story.title} (Time: ${new Date(story.timestamp).toISOString()} vs Last: ${new Date(lastSeen).toISOString()})`);
             return false;
         }
