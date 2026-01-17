@@ -308,8 +308,8 @@ export async function scrapeGhanaWeb(): Promise<Story[]> {
     const sections = [
         { name: 'News', url: 'https://www.ghanaweb.com/GhanaHomePage/NewsArchive/' },
         { name: 'Sports', url: 'https://www.ghanaweb.com/GhanaHomePage/SportsArchive/' },
-        { name: 'Entertainment', url: 'https://www.ghanaweb.com/GhanaHomePage/entertainment/' },
-        { name: 'Politics', url: 'https://www.ghanaweb.com/GhanaHomePage/politics/' }
+        { name: 'Business', url: 'https://www.ghanaweb.com/GhanaHomePage/business/' },
+        { name: 'Entertainment', url: 'https://www.ghanaweb.com/GhanaHomePage/entertainment/' }
     ];
 
     const stories: Story[] = [];
@@ -327,7 +327,7 @@ export async function scrapeGhanaWeb(): Promise<Story[]> {
             let count = 0;
 
             links.each((_, el) => {
-                if (count >= 20) return false; // Stop after 20 valid articles per section
+                if (count >= 10) return false; // Stop after 10 valid articles per section
 
                 const a = $(el);
                 const link = a.attr('href');
@@ -961,8 +961,8 @@ async function main() {
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
     // Deep Fetch Metadata for NEW articles
-    // Reverted to 30 but optimize with parallel processing
-    const batch = newStories.slice(0, 30);
+    // Increased batch size to 100 to accommodate Top 10 per category from GhanaWeb + RSS
+    const batch = newStories.slice(0, 100);
     console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles (limited from ${newStories.length})...`);
 
     // Process sequentially to be gentle on servers and avoid rate limiting
