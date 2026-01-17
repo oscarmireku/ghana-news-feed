@@ -177,7 +177,9 @@ export async function deleteInvalidArticles(): Promise<number> {
     'Home - News', 'Home - Business', 'Home - Sports', 'Home-Business',
     'Business archive', 'News Archive', 'Sports Archive', 'Photo Archives',
     'Archive', 'Category:', 'Section:', 'More News', 'More Stories',
-    'View All', 'Latest News', 'Top Stories'
+    'View All', 'Latest News', 'Top Stories', 'Click here', 'Read more',
+    'TWI News', 'News Videos', 'GhanaWeb TV', '| TV',
+    'Year In Review', 'Players Abroad', 'National Team(s)'
   ];
 
   let count = 0;
