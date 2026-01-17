@@ -962,27 +962,37 @@ async function main() {
     const batch = newStories.slice(0, 30);
     console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles (limited from ${newStories.length})...`);
 
-    // Process in chunks to speed up (Concurrency: 5)
+    // Process in chunks to speed up (Concurrency: 10 - increased from 5)
     // This reduces total wait time significantly compared to sequential processing
-    const chunk_size = 5;
+    const chunk_size = 10;
     for (let i = 0; i < batch.length; i += chunk_size) {
         const chunk = batch.slice(i, i + chunk_size);
         await Promise.all(chunk.map(async (story) => {
-            // Skip deep fetch if we already have content and image
-            if (story.content && story.content.length > 200 && story.image) {
+            // Smart skip logic: Only deep fetch if missing content OR images
+            // If RSS feed already provided both, skip the expensive deep fetch
+            const hasContent = story.content && story.content.length > 200;
+            const hasImage = story.image && story.image.trim() !== '';
+
+            if (hasContent && hasImage) {
                 console.log(`[SKIP] ${story.source} - Already has content & image`);
                 return;
             }
 
-            if (story.source === 'GhanaSoccerNet') return;
+            if (story.source === 'GhanaSoccerNet') return; // GSN already fetches full details
 
             try {
                 const metadata = await fetchArticleMetadata(story.link, story.source);
+
+                // Only update fields that are missing
+                if (!hasContent && metadata.content) {
+                    story.content = metadata.content;
+                }
+                if (!hasImage && metadata.image) {
+                    story.image = metadata.image;
+                }
                 if (metadata.time) {
                     story.time = metadata.time;
                     story.timestamp = metadata.timestamp!;
-                    story.content = metadata.content;
-                    story.image = metadata.image || story.image;
                 }
             } catch (e) {
                 console.error(`SCRAPER: Error fetching metadata for ${story.link}:`, e);
@@ -1001,19 +1011,16 @@ async function main() {
 
     // Filter out articles older than 7 days (prevents old stories from appearing)
     const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    // CRITICAL FIX: Only process the processed BATCH for insertion to avoid overwriting existing DB records with shallow data
     const recentStories = batch.filter(story => story.timestamp >= sevenDaysAgo);
 
-    // Filter for articles with valid images (performance optimization)
-    // Articles without images can still be accessed via database/API
-    const storiesWithImages = recentStories.filter(story =>
-        story.image !== null &&
-        story.image !== '' &&
-        !story.image.toLowerCase().endsWith('.svg')
-    );
+    // REMOVED STRICT IMAGE FILTER: Allow articles without images to ensure all feeds populate
+    // This was causing many valid articles to be dropped, especially from feeds like ZionFelix, YFM Ghana, etc.
+    const validStories = recentStories;
 
-    console.log(`SCRAPER: Image Filter: Input=${recentStories.length}, Output=${storiesWithImages.length}, Dropped=${recentStories.length - storiesWithImages.length}`);
+    console.log(`SCRAPER: Validation Stats: Input=${recentStories.length}, Output=${validStories.length}, Dropped=${recentStories.length - validStories.length}`);
 
-    const newArticlesCount = await insertArticles(storiesWithImages as Article[]);
+    const newArticlesCount = await insertArticles(validStories as Article[]);
     console.log(`SCRAPER: Added ${newArticlesCount} new articles`);
 
     const deletedInvalid = await deleteInvalidArticles();
