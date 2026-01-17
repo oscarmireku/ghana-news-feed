@@ -962,43 +962,31 @@ async function main() {
     const batch = newStories.slice(0, 30);
     console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles (limited from ${newStories.length})...`);
 
-    // Process in chunks to speed up (Concurrency: 10 - increased from 5)
-    // This reduces total wait time significantly compared to sequential processing
-    const chunk_size = 10;
-    for (let i = 0; i < batch.length; i += chunk_size) {
-        const chunk = batch.slice(i, i + chunk_size);
-        await Promise.all(chunk.map(async (story) => {
-            // Smart skip logic: Only deep fetch if missing content OR images
-            // If RSS feed already provided both, skip the expensive deep fetch
-            const hasContent = story.content && story.content.length > 200;
-            const hasImage = story.image && story.image.trim() !== '';
+    // Process sequentially to be gentle on servers and avoid rate limiting
+    // This was faster in previous versions (1m 12s) compared to parallel fetching (5m+)
+    for (const story of batch) {
+        // Skip deep fetch if we already have content and image
+        // Check both separately to be safe, but skip if both exist
+        if (story.content && story.content.length > 200 && story.image && story.image.trim() !== '') {
+            console.log(`[SKIP] ${story.source} - Already has content & image`);
+            continue;
+        }
 
-            if (hasContent && hasImage) {
-                console.log(`[SKIP] ${story.source} - Already has content & image`);
-                return;
+        if (story.source === 'GhanaSoccerNet') continue;
+
+        try {
+            const metadata = await fetchArticleMetadata(story.link, story.source);
+            if (metadata.time) {
+                story.time = metadata.time;
+                story.timestamp = metadata.timestamp!;
+                // Only update missing fields
+                if (!story.content || story.content.length < 200) story.content = metadata.content;
+                if (!story.image || story.image.trim() === '') story.image = metadata.image;
             }
-
-            if (story.source === 'GhanaSoccerNet') return; // GSN already fetches full details
-
-            try {
-                const metadata = await fetchArticleMetadata(story.link, story.source);
-
-                // Only update fields that are missing
-                if (!hasContent && metadata.content) {
-                    story.content = metadata.content;
-                }
-                if (!hasImage && metadata.image) {
-                    story.image = metadata.image;
-                }
-                if (metadata.time) {
-                    story.time = metadata.time;
-                    story.timestamp = metadata.timestamp!;
-                }
-            } catch (e) {
-                console.error(`SCRAPER: Error fetching metadata for ${story.link}:`, e);
-            }
-            console.log(`Processing ${story.source} - ${story.title.substring(0, 20)}...`);
-        }));
+        } catch (e) {
+            console.error(`SCRAPER: Error fetching metadata for ${story.link}:`, e);
+        }
+        console.log(`Processing ${story.source} - ${story.title.substring(0, 20)}...`);
     }
 
     allStories.sort((a, b) => b.timestamp - a.timestamp);
