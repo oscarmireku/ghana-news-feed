@@ -963,25 +963,35 @@ async function main() {
     console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles (limited from ${newStories.length})...`);
 
     // Process sequentially to be gentle on servers and avoid rate limiting
-    // This was faster in previous versions (1m 12s) compared to parallel fetching (5m+)
     for (const story of batch) {
-        // Skip deep fetch if we already have content and image
-        // Check both separately to be safe, but skip if both exist
-        if (story.content && story.content.length > 200 && story.image && story.image.trim() !== '') {
+        // PERF FIX: Check if we have both content and image
+        const hasContent = story.content && story.content.length > 200;
+        const hasImage = story.image && story.image.trim() !== '';
+
+        // If we have both, we can safely skip
+        if (hasContent && hasImage) {
             console.log(`[SKIP] ${story.source} - Already has content & image`);
             continue;
         }
 
-        if (story.source === 'GhanaSoccerNet') continue;
+        // Otherwise, deep fetch to fill in the missing pieces
+        if (story.source === 'GhanaSoccerNet') continue; // GSN handles itself
 
         try {
             const metadata = await fetchArticleMetadata(story.link, story.source);
+
+            // Fill in whatever is missing
+            if (!hasContent && metadata.content) {
+                story.content = metadata.content;
+            }
+            if (!hasImage && metadata.image) {
+                story.image = metadata.image;
+            }
+
+            // Always update time if available (often better from metadata)
             if (metadata.time) {
                 story.time = metadata.time;
                 story.timestamp = metadata.timestamp!;
-                // Only update missing fields
-                if (!story.content || story.content.length < 200) story.content = metadata.content;
-                if (!story.image || story.image.trim() === '') story.image = metadata.image;
             }
         } catch (e) {
             console.error(`SCRAPER: Error fetching metadata for ${story.link}:`, e);
