@@ -973,9 +973,36 @@ async function main() {
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
-    // Deep Fetch Metadata for NEW articles
-    // Increased batch size to 100 to accommodate Top 10 per category from GhanaWeb + RSS
-    const batch = newStories.slice(0, 100);
+    // FAIRNESS LOGIC: Ensure at least the latest story from EACH source is included
+    const storiesBySource = new Map<string, typeof newStories>();
+    newStories.forEach(s => {
+        if (!storiesBySource.has(s.source)) storiesBySource.set(s.source, []);
+        storiesBySource.get(s.source)!.push(s);
+    });
+
+    const priorityBatch: typeof newStories = [];
+    const remainingBatch: typeof newStories = [];
+
+    storiesBySource.forEach((stories) => {
+        // Sort by time (newest first) to get the best candidate
+        stories.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Take the top 1 for priority
+        priorityBatch.push(stories[0]);
+
+        // Put the rest in the pool
+        remainingBatch.push(...stories.slice(1));
+    });
+
+    // Shuffle the survivors
+    remainingBatch.sort(() => Math.random() - 0.5);
+
+    // Combine: Priority first, then fill up to 100
+    const LIMIT = 100;
+    const fillCount = Math.max(0, LIMIT - priorityBatch.length);
+    const batch = [...priorityBatch, ...remainingBatch.slice(0, fillCount)];
+
+    console.log(`SCRAPER: Fairness Check - Prioritized ${priorityBatch.length} items (1 per source), filled with ${Math.min(fillCount, remainingBatch.length)} others.`);
     console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles (limited from ${newStories.length})...`);
 
     // Process sequentially to be gentle on servers and avoid rate limiting
