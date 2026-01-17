@@ -754,46 +754,58 @@ async function scrapeGhanaSoccerNet(): Promise<Story[]> {
                 timeDisplay = parsed.display;
             }
 
-            // Fetch article page for content and image
-            let content = '';
-            let image = null;
+            // EXTRACT FROM RSS DIRECTLY (User Request)
+            // Image in <enclosure url="...">
+            let image = $(el).find('enclosure').attr('url');
 
-            try {
+            // Content in <content:encoded>
+            // Cheerio XML mode might need namespaced selector or just tag name depending on parser
+            let content = $(el).find('content\\:encoded').text();
+            if (!content) content = $(el).find('encoded').text(); // fallback
 
-
-                const articleRes = await rateLimitedFetch(link, { skipCache: true });
-
-                if (articleRes.ok) {
-                    const html = await articleRes.text();
-                    const $article = cheerio.load(html);
-
-                    // Content selector based on debug analysis
-                    content = $article('.post_content').html() || '';
-                    if (!content) {
-                        content = $article('.article-body').html() || ''; // Fallback
-                    }
-
-                    // Clean content
-                    if (content) {
-                        const clean$ = cheerio.load(content);
-                        clean$('script, style, iframe, .ad-container').remove();
-                        content = clean$.text().trim().substring(0, 5000); // Limit length
-                    }
-
-                    // Image selector
-                    image = $article('.single-image img').attr('src');
-                    if (!image) {
-                        image = $article('meta[property="og:image"]').attr('content');
-                    }
-                    if (!image) {
-                        image = $article('meta[name="twitter:image"]').attr('content');
-                    }
-                }
-            } catch (err) {
-                console.error(`${source}: Error fetching article ${link}`, err);
+            // Clean content if found
+            if (content) {
+                // Remove CDATA wrapper if cheerio didn't already
+                content = content.replace(/<!\[CDATA\[(.*?)\]\]>/gs, '$1');
+                // Basic cleaning
+                const clean$ = cheerio.load(content);
+                clean$('script, style, iframe, .ad-container').remove();
+                content = clean$.text().trim().substring(0, 5000);
             }
 
-            // RSS Image fallback
+            // Only Deep Fetch if missing critical data
+            if (!content || !image) {
+                try {
+                    // console.log(`${source}: Deep fetching ${link} for missing data...`); // Optional log
+                    const articleRes = await rateLimitedFetch(link, { skipCache: true });
+
+                    if (articleRes.ok) {
+                        const html = await articleRes.text();
+                        const $article = cheerio.load(html);
+
+                        if (!content) {
+                            content = $article('.post_content').html() || '';
+                            if (!content) content = $article('.article-body').html() || '';
+
+                            if (content) {
+                                const clean$ = cheerio.load(content);
+                                clean$('script, style, iframe, .ad-container').remove();
+                                content = clean$.text().trim().substring(0, 5000);
+                            }
+                        }
+
+                        if (!image) {
+                            image = $article('.single-image img').attr('src');
+                            if (!image) image = $article('meta[property="og:image"]').attr('content');
+                            if (!image) image = $article('meta[name="twitter:image"]').attr('content');
+                        }
+                    }
+                } catch (err) {
+                    console.error(`${source}: Error fetching article ${link}`, err);
+                }
+            }
+
+            // Final fallback for image (media:content)
             if (!image) {
                 const mediaContent = $(el).find('media\\:content, content').attr('url');
                 if (mediaContent) image = mediaContent;
