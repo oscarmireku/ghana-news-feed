@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // 5 AM to 10 PM (Daytime): Cache for 20 minutes (1200s)
         const currentHour = new Date().getUTCHours();
         const isOffPeak = currentHour >= 22 || currentHour < 5;
-        const cacheTime = since ? 300 : (isOffPeak ? 3600 : 1200);
+        const cacheTime = since ? 300 : (isOffPeak ? 3600 : 330);
 
         res.setHeader('Cache-Control', `s-maxage=${cacheTime}, stale-while-revalidate=60`);
 
