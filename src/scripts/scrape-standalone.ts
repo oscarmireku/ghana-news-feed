@@ -776,7 +776,7 @@ async function scrapeGhanaSoccerNet(): Promise<Story[]> {
             // Only Deep Fetch if missing critical data
             if (!content || !image) {
                 try {
-                    // console.log(`${source}: Deep fetching ${link} for missing data...`); // Optional log
+                    console.log(`${source}: RSS missing data (img=${!!image}, content=${!!content}). Deep fetching ${link}...`);
                     const articleRes = await rateLimitedFetch(link, { skipCache: true });
 
                     if (articleRes.ok) {
