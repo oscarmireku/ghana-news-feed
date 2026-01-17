@@ -302,9 +302,9 @@ export async function fetchArticleMetadata(link: string, source: string): Promis
 }
 
 // ---------------------------------------------------------------------------
-// Source: GhanaWeb (Scrape Sections)
+// Source: GhanaWeb (Custom HTML Scraper)
 // ---------------------------------------------------------------------------
-async function scrapeGhanaWeb(): Promise<Story[]> {
+export async function scrapeGhanaWeb(): Promise<Story[]> {
     const sections = [
         { name: 'News', url: 'https://www.ghanaweb.com/GhanaHomePage/NewsArchive/' },
         { name: 'Sports', url: 'https://www.ghanaweb.com/GhanaHomePage/SportsArchive/' },
@@ -349,9 +349,10 @@ async function scrapeGhanaWeb(): Promise<Story[]> {
                     '/GhanaHomePage/'
                 ];
 
-                // Check if exact match to ignored path
+                // Check if exact match to ignored path OR contains unwanted sections
                 const path = new URL(fullLink).pathname;
                 if (ignoredPaths.includes(path) || path === '/GhanaHomePage/') return;
+                if (fullLink.includes('/television/') || fullLink.includes('/radio/') || fullLink.includes('/video/')) return;
 
                 // Additional filter: Article URLs usually have more segments or end in .php or digits
                 // If it looks like a category landing page (e.g. /GhanaHomePage/NewsArchive/), skip
@@ -362,7 +363,8 @@ async function scrapeGhanaWeb(): Promise<Story[]> {
                     'Home - News', 'Home - Business', 'Home - Sports', 'Home-Business',
                     'Business archive', 'News Archive', 'Sports Archive', 'Photo Archives',
                     'Archive', 'Category:', 'Section:', 'More News', 'More Stories',
-                    'View All', 'Latest News', 'Top Stories', 'Click here', 'Read more'
+                    'View All', 'Latest News', 'Top Stories', 'Click here', 'Read more',
+                    'TWI News', 'News Videos', 'GhanaWeb TV', '| TV'
                 ];
                 const isUnwantedTitle = unwantedTitlePatterns.some(pattern =>
                     title.toLowerCase().trim() === pattern.toLowerCase() ||
