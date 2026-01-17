@@ -365,7 +365,8 @@ export async function scrapeGhanaWeb(): Promise<Story[]> {
                     'Archive', 'Category:', 'Section:', 'More News', 'More Stories',
                     'View All', 'Latest News', 'Top Stories', 'Click here', 'Read more',
                     'TWI News', 'News Videos', 'GhanaWeb TV', '| TV',
-                    'Year In Review', 'Players Abroad', 'National Team(s)'
+                    'Year In Review', 'Players Abroad', 'National Team(s)',
+                    'Stock Exchange', 'Exchange Rate', '(GSE)'
                 ];
                 const isUnwantedTitle = unwantedTitlePatterns.some(pattern =>
                     title.toLowerCase().trim() === pattern.toLowerCase() ||
