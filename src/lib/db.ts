@@ -98,7 +98,6 @@ export async function getAllArticles(limit: number = 500, includeContent: boolea
     sql: `
       SELECT id, source, title, link, image, time, section, timestamp${includeContent ? ', content' : ''}
       FROM articles
-      WHERE image IS NOT NULL AND image != ''
       ORDER BY timestamp DESC
       LIMIT ?
     `,
@@ -118,9 +117,7 @@ export async function getArticlesSince(
     sql: `
       SELECT id, source, title, link, image, time, section, timestamp${includeContent ? ', content' : ''}
       FROM articles
-      WHERE image IS NOT NULL 
-        AND image != ''
-        AND timestamp > ?
+      WHERE timestamp > ?
       ORDER BY timestamp DESC
       LIMIT ?
     `,
