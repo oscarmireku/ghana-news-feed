@@ -264,66 +264,9 @@ async function fetchArticleMetadata(link: string, source?: string): Promise<{ im
             }
         }
 
-        // ---------------------------------------------------------
-        // Fallback: Gemini AI (Final Resort)
-        // ---------------------------------------------------------
-        if ((!content || content.length < 100) && process.env.GEMINI_API_KEY) {
-            console.log(`CRON: Using Gemini AI fallback for ${link}...`);
-            const aiResult = await extractContentWithGemini(html);
-            if (aiResult?.content) {
-                content = aiResult.content;
-                if (!image && aiResult.image) image = aiResult.image;
-                // We don't override title usually, but could if needed
-            }
-        }
-
         return { image, timestamp, time, content };
     } catch {
         return { image: null };
-    }
-}
-
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-// Gemini Extraction Helper
-async function extractContentWithGemini(html: string): Promise<{ content: string; title?: string; image?: string } | null> {
-    if (!process.env.GEMINI_API_KEY) return null;
-
-    try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-        // Clean HTML to save tokens
-        const cleanedHtml = html
-            .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
-            .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, "")
-            .replace(/<!--[\s\S]*?-->/g, "")
-            .replace(/\s+/g, " ")
-            .slice(0, 30000); // Increased limit for Gemini's large context window
-
-        const prompt = `
-        You are a news scraper. Output VALID JSON only. Do not use Markdown backticks.
-        Extract the main article content (as generic HTML <p> tags), the title, and the main image URL.
-        
-        HTML:
-        ${cleanedHtml}
-        
-        Format:
-        { "title": "...", "content": "<p>...</p>", "image": "..." }
-        `;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-
-        // Clean markdown backticks if present (common in LLM output)
-        const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-
-        return JSON.parse(jsonStr);
-
-    } catch (error) {
-        console.error("Gemini Extraction failed:", error);
-        return null; // Fail gracefully
     }
 }
 
