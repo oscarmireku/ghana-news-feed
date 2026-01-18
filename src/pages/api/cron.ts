@@ -568,7 +568,6 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
 const GENERIC_FEEDS = [
     { source: 'yen.com.gh', url: 'https://yen.com.gh/rss/all.rss', section: 'News' },
     { source: 'pulse.com.gh', url: 'https://www.pulse.com.gh/rss-articles.xml', section: 'News' },
-    { source: 'Modern Ghana', url: 'https://www.modernghana.com/rssfeed/news.xml', section: 'News' },
     { source: 'GNA', url: 'https://gna.org.gh/feed/', section: 'News' },
     { source: 'Graphic Online', url: 'https://www.graphic.com.gh/news/general-news?format=feed', section: 'News' },
     { source: 'Ghanaian Times', url: 'https://www.ghanaiantimes.com.gh/feed/', section: 'News' },
