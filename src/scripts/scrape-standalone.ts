@@ -618,7 +618,26 @@ async function scrapePeaceFM_HTML(): Promise<Story[]> {
 // ---------------------------------------------------------------------------
 const GENERIC_FEEDS = [
     { source: 'yen.com.gh', url: 'https://yen.com.gh/rss/all.rss', section: 'News' },
-    { source: 'pulse.com.gh', url: 'https://www.pulse.com.gh/rss-articles.xml', section: 'News' }
+    { source: 'pulse.com.gh', url: 'https://www.pulse.com.gh/rss-articles.xml', section: 'News' },
+    { source: '3News', url: 'https://3news.com/feed/', section: 'News' },
+    { source: 'Tech Labari', url: 'https://techlabari.com/feed/', section: 'Tech' },
+    { source: 'DailyGuide', url: 'https://dailyguidenetwork.com/feed/', section: 'News' },
+    // CitiNewsRoom moved to dedicated scraper
+    { source: 'Graphic Online', url: 'https://www.graphic.com.gh/news/general-news?format=feed', section: 'News' },
+    { source: 'Ghanaian Times', url: 'https://www.ghanaiantimes.com.gh/feed/', section: 'News' },
+    { source: 'Starr FM', url: 'https://starrfm.com.gh/feed/', section: 'News' },
+
+    { source: 'The B&FT', url: 'https://thebftonline.com/feed/', section: 'Business' },
+    { source: 'Atinka Online', url: 'https://atinkaonline.com/feed/', section: 'News' },
+    { source: 'Asaase Radio', url: 'https://asaaseradio.com/feed/', section: 'News' },
+    { source: 'The Herald', url: 'https://theheraldghana.com/feed/', section: 'News' },
+    { source: 'The Chronicle', url: 'https://thechronicle.com.gh/feed/', section: 'News' },
+    { source: 'GhPage', url: 'https://ghpage.com/feed/', section: 'Entertainment' },
+    { source: 'Ameyaw Debrah', url: 'https://ameyawdebrah.com/feed/', section: 'Entertainment' },
+    { source: 'YFM Ghana', url: 'https://yfmghana.com/feed/', section: 'Entertainment' },
+    { source: 'Happy Ghana', url: 'https://www.happyghana.com/feed/', section: 'News' },
+    { source: 'ZionFelix', url: 'https://www.zionfelix.net/feed/', section: 'Entertainment' },
+    { source: 'Nkonkonsa', url: 'https://nkonkonsa.com/feed/', section: 'Entertainment' }
 ];
 
 
@@ -880,11 +899,17 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 async function main() {
     console.log('SCRAPER: Starting job...');
 
-    const [genericStories] = await Promise.all([
+    const [gwStories, adomStories, peaceStories, joyStories, citiStories, gsnStories, genericStories] = await Promise.all([
+        scrapeGhanaWeb(),
+        scrapeAdomOnline(),
+        scrapePeaceFM(),
+        scrapeMyJoyOnline(),
+        scrapeCitiNewsRoom(),
+        scrapeGhanaSoccerNet(),
         scrapeGenericRSS()
     ]);
 
-    let allStories = [...genericStories];
+    let allStories = [...gwStories, ...adomStories, ...peaceStories, ...joyStories, ...citiStories, ...gsnStories, ...genericStories];
 
     console.log(`SCRAPER: Fetched ${allStories.length} raw stories.`);
     console.log(`SCRAPER: Fetched ${allStories.length} raw stories.`);

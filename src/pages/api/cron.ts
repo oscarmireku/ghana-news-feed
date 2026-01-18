@@ -567,7 +567,23 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
 // ---------------------------------------------------------------------------
 const GENERIC_FEEDS = [
     { source: 'yen.com.gh', url: 'https://yen.com.gh/rss/all.rss', section: 'News' },
-    { source: 'pulse.com.gh', url: 'https://www.pulse.com.gh/rss-articles.xml', section: 'News' }
+    { source: 'pulse.com.gh', url: 'https://www.pulse.com.gh/rss-articles.xml', section: 'News' },
+    { source: 'Modern Ghana', url: 'https://www.modernghana.com/rssfeed/news.xml', section: 'News' },
+    { source: 'GNA', url: 'https://gna.org.gh/feed/', section: 'News' },
+    { source: 'Graphic Online', url: 'https://www.graphic.com.gh/news/general-news?format=feed', section: 'News' },
+    { source: 'Ghanaian Times', url: 'https://www.ghanaiantimes.com.gh/feed/', section: 'News' },
+    { source: 'Starr FM', url: 'https://starrfm.com.gh/feed/', section: 'News' },
+    { source: 'News Ghana', url: 'https://newsghana.com.gh/feed/', section: 'News' },
+    { source: 'The B&FT', url: 'https://thebftonline.com/feed/', section: 'Business' },
+    { source: 'Atinka Online', url: 'https://atinkaonline.com/feed/', section: 'News' },
+    { source: 'Asaase Radio', url: 'https://asaaseradio.com/feed/', section: 'News' },
+    { source: 'The Herald', url: 'https://theheraldghana.com/feed/', section: 'News' },
+    { source: 'The Chronicle', url: 'https://thechronicle.com.gh/feed/', section: 'News' },
+    { source: 'GhPage', url: 'https://ghpage.com/feed/', section: 'Entertainment' },
+    { source: 'Ameyaw Debrah', url: 'https://ameyawdebrah.com/feed/', section: 'Entertainment' },
+    { source: 'YFM Ghana', url: 'https://yfmghana.com/feed/', section: 'Entertainment' },
+    { source: 'Happy Ghana', url: 'https://www.happyghana.com/feed/', section: 'News' },
+    { source: 'GhanaSoccerNet', url: 'https://ghanasoccernet.com/feed', section: 'Sports' }
 ];
 
 async function scrapeGenericRSS(): Promise<Story[]> {
@@ -606,9 +622,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log('CRON: Starting scrape...');
 
-    const genericStories = await scrapeGenericRSS();
+    const [ghanaStories, adomStories, peaceStories, joyStories, threeNewsStories, dailyGuideResult, citiStories, genericStories] = await Promise.all([
+        scrapeGhanaWeb(),
+        scrapeAdomOnline(),
+        scrapePeaceFM(),
+        scrapeMyJoyOnline(),
+        scrape3News(),
+        scrapeDailyGuide(),
+        scrapeCitiNewsRoom(),
+        scrapeGenericRSS()
+    ]);
 
-    let allStories = [...genericStories];
+    const dailyGuideStories = dailyGuideResult.stories;
+
+    let allStories = [...ghanaStories, ...adomStories, ...peaceStories, ...joyStories, ...threeNewsStories, ...dailyGuideStories, ...citiStories, ...genericStories];
 
     // Deduplicate by link
     const uniqueMap = new Map();
