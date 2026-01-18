@@ -251,6 +251,8 @@ export async function fetchArticleMetadata(link: string, source: string): Promis
         // Add source specific selectors to the front if not 3News (handled above)
         if (source === 'GhanaWeb') robustSelectors.unshift('#medsection1', '.article-content-area');
         if (source === '3News') robustSelectors.unshift('.prose');
+        if (source === 'Yen' || source === 'yen.com.gh') robustSelectors.unshift('.js-article-body', '.post-content');
+        if (source === 'Pulse' || source === 'pulse.com.gh') robustSelectors.unshift('article', '.max-w-\\[620px\\]', '.article-content');
 
         for (const selector of robustSelectors) {
             const el = $(selector).first();
@@ -615,25 +617,8 @@ async function scrapePeaceFM_HTML(): Promise<Story[]> {
 // Source: Generic RSS Scraper
 // ---------------------------------------------------------------------------
 const GENERIC_FEEDS = [
-    { source: '3News', url: 'https://3news.com/feed/', section: 'News' },
-    { source: 'Tech Labari', url: 'https://techlabari.com/feed/', section: 'Tech' },
-    { source: 'DailyGuide', url: 'https://dailyguidenetwork.com/feed/', section: 'News' },
-    // CitiNewsRoom moved to dedicated scraper
-    { source: 'Graphic Online', url: 'https://www.graphic.com.gh/news/general-news?format=feed', section: 'News' },
-    { source: 'Ghanaian Times', url: 'https://www.ghanaiantimes.com.gh/feed/', section: 'News' },
-    { source: 'Starr FM', url: 'https://starrfm.com.gh/feed/', section: 'News' },
-
-    { source: 'The B&FT', url: 'https://thebftonline.com/feed/', section: 'Business' },
-    { source: 'Atinka Online', url: 'https://atinkaonline.com/feed/', section: 'News' },
-    { source: 'Asaase Radio', url: 'https://asaaseradio.com/feed/', section: 'News' },
-    { source: 'The Herald', url: 'https://theheraldghana.com/feed/', section: 'News' },
-    { source: 'The Chronicle', url: 'https://thechronicle.com.gh/feed/', section: 'News' },
-    { source: 'GhPage', url: 'https://ghpage.com/feed/', section: 'Entertainment' },
-    { source: 'Ameyaw Debrah', url: 'https://ameyawdebrah.com/feed/', section: 'Entertainment' },
-    { source: 'YFM Ghana', url: 'https://yfmghana.com/feed/', section: 'Entertainment' },
-    { source: 'Happy Ghana', url: 'https://www.happyghana.com/feed/', section: 'News' },
-    { source: 'ZionFelix', url: 'https://www.zionfelix.net/feed/', section: 'Entertainment' },
-    { source: 'Nkonkonsa', url: 'https://nkonkonsa.com/feed/', section: 'Entertainment' }
+    { source: 'yen.com.gh', url: 'https://yen.com.gh/rss/all.rss', section: 'News' },
+    { source: 'pulse.com.gh', url: 'https://www.pulse.com.gh/rss-articles.xml', section: 'News' }
 ];
 
 
@@ -895,17 +880,11 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 async function main() {
     console.log('SCRAPER: Starting job...');
 
-    const [gwStories, adomStories, peaceStories, joyStories, citiStories, gsnStories, genericStories] = await Promise.all([
-        scrapeGhanaWeb(),
-        scrapeAdomOnline(),
-        scrapePeaceFM(),
-        scrapeMyJoyOnline(),
-        scrapeCitiNewsRoom(),
-        scrapeGhanaSoccerNet(),
+    const [genericStories] = await Promise.all([
         scrapeGenericRSS()
     ]);
 
-    let allStories = [...gwStories, ...adomStories, ...peaceStories, ...joyStories, ...citiStories, ...gsnStories, ...genericStories];
+    let allStories = [...genericStories];
 
     console.log(`SCRAPER: Fetched ${allStories.length} raw stories.`);
     console.log(`SCRAPER: Fetched ${allStories.length} raw stories.`);
