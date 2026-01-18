@@ -10,6 +10,7 @@
     "cleanup": "tsx src/scripts/cleanup-bad-articles.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@libsql/client": "^0.17.0",
     "@mozilla/readability": "^0.6.0",
     "@types/jsdom": "^27.0.0",

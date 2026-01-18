@@ -8,5 +8,6 @@ debug_*.txt
 db_stats*.txt
 *.json
 .env
+.env.local
 dist/
 node_modules/
