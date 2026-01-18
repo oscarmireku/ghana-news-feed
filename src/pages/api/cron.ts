@@ -1,6 +1,8 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import * as cheerio from 'cheerio';
+import { Readability } from '@mozilla/readability';
+import { JSDOM } from 'jsdom';
 import { insertArticles, deleteOldArticles, deleteInvalidArticles, getAllLinks, Article } from '../../lib/db';
 import { fetchRSS } from '../../lib/rss';
 
@@ -246,6 +248,19 @@ async function fetchArticleMetadata(link: string, source?: string): Promise<{ im
                     }
                 });
                 content = paragraphs.join('');
+            }
+        }
+
+        // ---------------------------------------------------------
+        // Fallback: Mozilla Readability
+        // ---------------------------------------------------------
+        if (!content || content.length < 100) {
+            const dom = new JSDOM(html, { url: link });
+            const reader = new Readability(dom.window.document);
+            const article = reader.parse();
+            if (article && article.content) {
+                // Readability returns HTML, but we might want to ensure it's clean
+                content = article.content;
             }
         }
 
