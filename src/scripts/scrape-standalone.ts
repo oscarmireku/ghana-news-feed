@@ -645,7 +645,6 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
         { name: 'News', url: 'https://citinewsroom.com/news/' },
         { name: 'Business', url: 'https://citinewsroom.com/category/business/' },
         { name: 'Politics', url: 'https://citinewsroom.com/category/politics/' },
-        { name: 'Entertainment', url: 'https://citinewsroom.com/category/entertainment/' },
         { name: 'Regional', url: 'https://citinewsroom.com/category/regional-news/' },
         { name: 'Sports', url: 'https://citisportsonline.com/' }
     ];
@@ -693,6 +692,11 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
                     // Specific section from article if available, otherwise generic section
                     let category = $(el).find('.jeg_post_category span a').text().trim();
                     if (!category) category = sec.name;
+
+                    // Explicitly skip Entertainment articles even if found in other sections
+                    if (category.toLowerCase().includes('entertainment') || link.toLowerCase().includes('/entertainment/')) {
+                        return;
+                    }
 
                     stories.push({
                         id: `citi-${stories.length + Math.random()}`,

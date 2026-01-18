@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import * as cheerio from 'cheerio';
 import { insertArticles, deleteOldArticles, deleteInvalidArticles, getAllLinks, Article } from '../../lib/db';
+import { fetchRSS } from '../../lib/rss';
 
 export const config = {
     maxDuration: 60, // Serverless function timeout
@@ -344,66 +345,27 @@ async function scrapeGhanaWeb(): Promise<Story[]> {
 // ---------------------------------------------------------------------------
 // Source: AdomOnline (RSS Sections)
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Source: AdomOnline (RSS Sections)
+// ---------------------------------------------------------------------------
 async function scrapeAdomOnline(): Promise<Story[]> {
-    const feeds = [
-        { name: 'News', url: 'https://www.adomonline.com/category/news/feed/' },
-        { name: 'Sports', url: 'https://www.adomonline.com/category/sports/feed/' },
-        { name: 'Business', url: 'https://www.adomonline.com/category/business/feed/' }
-    ];
-
-    const stories: Story[] = [];
-    const seenLinks = new Set<string>();
-
-    await Promise.all(feeds.map(async (feed) => {
-        try {
-            const res = await fetch(feed.url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-            const xml = await res.text();
-            const $ = cheerio.load(xml, { xmlMode: true });
-
-            $('item').slice(0, 5).each((_, el) => {
-                const title = $(el).find('title').text().trim();
-                const link = $(el).find('link').text().trim();
-                const pubDate = $(el).find('pubDate').text().trim();
-
-                if (seenLinks.has(link)) return;
-                seenLinks.add(link);
-
-                let timestamp = Date.now();
-                let timeDisplay = 'Recent';
-                if (pubDate) {
-                    const d = new Date(pubDate);
-                    if (!isNaN(d.getTime())) {
-                        timestamp = d.getTime();
-                        timeDisplay = d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' });
-                    }
-                }
-
-                let image = $(el).find('media\\:content').attr('url') ||
-                    $(el).find('media\\:thumbnail').attr('url');
-
-                if (!image) {
-                    const content = $(el).find('content\\:encoded').text();
-                    const match = content.match(/src="([^"]+)"/);
-                    if (match) image = match[1];
-                }
-
-                stories.push({
-                    id: `adom-${stories.length + Math.random()}`,
-                    source: 'AdomOnline',
-                    title,
-                    link,
-                    image: image || null,
-                    time: timeDisplay,
-                    timestamp,
-                    section: feed.name
-                });
-            });
-        } catch (e) {
-            console.error(`AdomOnline ${feed.name} Error:`, e);
-        }
-    }));
-
-    return stories;
+    try {
+        const items = await fetchRSS('https://www.adomonline.com/feed/', 'AdomOnline', 'News');
+        return items.map(item => ({
+            id: `adom-${Math.random().toString(36).substr(2, 9)}`,
+            source: 'AdomOnline',
+            title: item.title,
+            link: item.link,
+            image: item.imageUrl || null,
+            time: timeAgo(new Date(item.pubDate).getTime()),
+            timestamp: new Date(item.pubDate).getTime(),
+            section: 'News',
+            content: item.content
+        }));
+    } catch (e) {
+        console.error('AdomOnline Error:', e);
+        return [];
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -446,179 +408,74 @@ async function scrapePeaceFM(): Promise<Story[]> {
 // ---------------------------------------------------------------------------
 // Source: MyJoyOnline (HTML Scrape Sections)
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Source: MyJoyOnline (RSS)
+// ---------------------------------------------------------------------------
 async function scrapeMyJoyOnline(): Promise<Story[]> {
-    const sections = [
-        { name: 'News', url: 'https://www.myjoyonline.com/news/' },
-        { name: 'Sports', url: 'https://www.myjoyonline.com/sports/' },
-        { name: 'Business', url: 'https://www.myjoyonline.com/business/' }
-    ];
-
-    const stories: Story[] = [];
-    const seenLinks = new Set<string>();
-
-    await Promise.all(sections.map(async (sec) => {
-        try {
-            const res = await fetch(sec.url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-            const html = await res.text();
-            const $ = cheerio.load(html);
-
-            const containers = $('.news-main-list .col-lg-3, .col-lg-6, .home-section-story-list li, .main-listing-article');
-
-            containers.slice(0, 10).each((_, el) => {
-                const imgLink = $(el).find('a.bgposition');
-                const titleLink = $(el).find('h3 a, h4 a, .title a').first();
-                const fallbackLink = $(el).find('a').first();
-
-                const finalLink = titleLink.length ? titleLink : (imgLink.length ? imgLink : fallbackLink);
-
-                const link = finalLink.attr('href');
-                let title = finalLink.text().trim();
-                if (!title) title = $(el).find('h1, h2, h3, h4').text().trim();
-
-                let image = $(el).find('img').attr('data-src') || $(el).find('img').attr('src');
-                if (!image && imgLink.attr('style')) {
-                    const match = imgLink.attr('style')?.match(/url\(['"]?([^'"]+)['"]?\)/);
-                    if (match) image = match[1];
-                }
-
-                let dateStr = $(el).find('.date, time, .post-date, .published, .entry-date').first().text().trim();
-                if (!dateStr) {
-                    dateStr = $(el).find('time').attr('datetime') || '';
-                }
-                const { timestamp, display } = parsePublicationDate(dateStr);
-
-                if (link && title && title.length > 10) {
-                    const fullLink = resolveUrl('https://www.myjoyonline.com', link);
-                    if (seenLinks.has(fullLink)) return;
-                    seenLinks.add(fullLink);
-
-                    stories.push({
-                        id: `joy-${stories.length + Math.random()}`,
-                        source: 'MyJoyOnline',
-                        title,
-                        link: fullLink,
-                        image: image || null,
-                        time: display,
-                        timestamp,
-                        section: sec.name
-                    });
-                }
-            });
-        } catch (e) {
-            console.error(`MyJoyOnline ${sec.name} Error:`, e);
-        }
-    }));
-
-    return stories;
+    try {
+        const items = await fetchRSS('https://www.myjoyonline.com/feed/', 'MyJoyOnline', 'News');
+        return items.map(item => ({
+            id: `joy-${Math.random().toString(36).substr(2, 9)}`,
+            source: 'MyJoyOnline',
+            title: item.title,
+            link: item.link,
+            image: item.imageUrl || null,
+            time: timeAgo(new Date(item.pubDate).getTime()),
+            timestamp: new Date(item.pubDate).getTime(),
+            section: 'News',
+            content: item.content
+        }));
+    } catch (e) {
+        console.error('MyJoyOnline Error:', e);
+        return [];
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Source: 3News (RSS Feed)
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Source: 3News (RSS Feed)
+// ---------------------------------------------------------------------------
 async function scrape3News(): Promise<Story[]> {
-    const stories: Story[] = [];
-    const seenLinks = new Set<string>();
-
     try {
-        const res = await fetch('https://3news.com/news/feed.xml', {
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-        if (!res.ok) throw new Error(`3News RSS failed: ${res.status}`);
-
-        const xml = await res.text();
-        const $ = cheerio.load(xml, { xmlMode: true });
-
-        $('item').slice(0, 10).each((_, el) => {
-            const title = $(el).find('title').text().trim();
-            const link = $(el).find('link').text().trim();
-            const pubDate = $(el).find('pubDate').text().trim();
-
-            if (seenLinks.has(link)) return;
-            seenLinks.add(link);
-
-            let timestamp = Date.now();
-            let timeDisplay = 'Recent';
-            if (pubDate) {
-                const parsed = parsePublicationDate(pubDate);
-                timestamp = parsed.timestamp;
-                timeDisplay = parsed.display;
-            }
-
-            let image = $(el).find('media\\:content').attr('url') ||
-                $(el).find('media\\:thumbnail').attr('url');
-
-            if (!image) {
-                const description = $(el).find('description').text();
-                const match = description.match(/src="([^"]+)"/);
-                if (match) image = match[1];
-            }
-
-            stories.push({
-                id: `3news-${stories.length + Math.random()}`,
-                source: '3News',
-                title,
-                link,
-                image: image || null,
-                time: timeDisplay,
-                timestamp,
-                section: 'News'
-            });
-        });
+        const items = await fetchRSS('https://3news.com/feed/', '3News', 'News');
+        return items.map(item => ({
+            id: `3news-${Math.random().toString(36).substr(2, 9)}`,
+            source: '3News',
+            title: item.title,
+            link: item.link,
+            image: item.imageUrl || null,
+            time: timeAgo(new Date(item.pubDate).getTime()),
+            timestamp: new Date(item.pubDate).getTime(),
+            section: 'News',
+            content: item.content
+        }));
     } catch (e) {
         console.error('3News Error:', e);
+        return [];
     }
-
-    return stories;
 }
 
 async function scrapeDailyGuide(): Promise<{ stories: Article[], logs: string[] }> {
     const stories: Article[] = [];
     const logs: string[] = [];
     try {
-        const res = await fetch('https://dailyguidenetwork.com/feed/', {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            },
-            next: { revalidate: 300 }
-        });
-
-        if (!res.ok) {
-            logs.push(`DailyGuide RSS Error: ${res.status}`);
-            return { stories, logs };
-        }
-
-        const xml = await res.text();
-        const $ = cheerio.load(xml, { xmlMode: true });
-
-        const items = $('item').slice(0, 10);
-        logs.push(`DailyGuide: Found ${items.length} items`);
-
-        items.each((_, el) => {
-            const title = $(el).find('title').text().trim();
-            const link = $(el).find('link').text().trim();
-            const pubDate = $(el).find('pubDate').text().trim();
-
-            if (!link) return;
-
-            let timestamp = Date.now();
-            let timeDisplay = 'Recent';
-            if (pubDate) {
-                const parsed = parsePublicationDate(pubDate);
-                timestamp = parsed.timestamp;
-                timeDisplay = parsed.display;
-            }
-
+        const items = await fetchRSS('https://dailyguidenetwork.com/feed/', 'DailyGuide', 'News');
+        items.forEach(item => {
             stories.push({
-                id: `dailyguide-${stories.length + Math.random()}`,
+                id: `dailyguide-${Math.random().toString(36).substr(2, 9)}`,
                 source: 'DailyGuide',
-                title,
-                link,
-                image: null,
-                time: timeDisplay,
-                timestamp,
-                section: 'News'
-            });
+                title: item.title,
+                link: item.link,
+                image: item.imageUrl || null,
+                time: timeAgo(new Date(item.pubDate).getTime()),
+                timestamp: new Date(item.pubDate).getTime(),
+                section: 'News',
+                content: item.content
+            } as Article);
         });
+        logs.push(`DailyGuide: Found ${items.length} items`);
     } catch (e) {
         logs.push(`DailyGuide Error: ${e}`);
     }
@@ -634,7 +491,6 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
         { name: 'News', url: 'https://citinewsroom.com/news/' },
         { name: 'Business', url: 'https://citinewsroom.com/category/business/' },
         { name: 'Politics', url: 'https://citinewsroom.com/category/politics/' },
-        { name: 'Entertainment', url: 'https://citinewsroom.com/category/entertainment/' },
         { name: 'Regional', url: 'https://citinewsroom.com/category/regional-news/' },
         { name: 'Sports', url: 'https://citisportsonline.com/' }
     ];
@@ -678,6 +534,11 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
                     // Specific section from article if available, otherwise generic section
                     let category = $(el).find('.jeg_post_category span a').text().trim();
                     if (!category) category = sec.name;
+
+                    // Explicitly skip Entertainment articles even if found in other sections
+                    if (category.toLowerCase().includes('entertainment') || link.toLowerCase().includes('/entertainment/')) {
+                        return;
+                    }
 
                     stories.push({
                         id: `citi-${stories.length + Math.random()}`,
@@ -728,88 +589,22 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 
     await Promise.all(GENERIC_FEEDS.map(async (feed) => {
         try {
-            const res = await fetch(feed.url, {
-                headers: { 'User-Agent': 'Mozilla/5.0' },
-                next: { revalidate: 300 }
-            });
-            if (!res.ok) return;
-
-            const xml = await res.text();
-            const $ = cheerio.load(xml, { xmlMode: true });
-
-            let items = $('item');
-            let isAtom = false;
-
-            if (items.length === 0) {
-                items = $('entry');
-                isAtom = true;
-            }
-
-            items.slice(0, 5).each((_, el) => {
-                const title = $(el).find('title').text().trim();
-
-                let link = '';
-                if (isAtom) {
-                    link = $(el).find('link').attr('href') || $(el).find('link').text().trim();
-                } else {
-                    link = $(el).find('link').text().trim();
-                    if (!link) link = $(el).find('guid').text().trim();
-                }
-
-                let pubDate = '';
-                if (isAtom) {
-                    pubDate = $(el).find('published').text() || $(el).find('updated').text();
-                } else {
-                    pubDate = $(el).find('pubDate').text().trim();
-                }
-
-                if (!link) return;
-
-                let timestamp = Date.now();
-                let timeDisplay = 'Recent';
-                if (pubDate) {
-                    const parsed = parsePublicationDate(pubDate);
-                    timestamp = parsed.timestamp;
-                    timeDisplay = parsed.display;
-                }
-
-                let image = $(el).find('media\\:content').attr('url')?.trim() ||
-                    $(el).find('media\\:thumbnail').attr('url')?.trim() ||
-                    $(el).find('enclosure').attr('url')?.trim();
-
-                if (!image) {
-                    // Try content for image
-                    const content = $(el).find('content\\:encoded').text() || $(el).find('content').text() || $(el).find('description').text();
-                    const match = content.match(/src="([^"]+)"/);
-                    if (match) image = match[1]?.trim();
-                }
-
-
-                let category = '';
-                if (isAtom) {
-                    category = $(el).find('category').attr('term') ||
-                        $(el).find('category').attr('label') || '';
-                } else {
-                    category = $(el).find('category').first().text().trim();
-                }
-
-                if (category.toLowerCase().includes('news')) category = 'News';
-                else if (category.length > 20) category = category.substring(0, 20) + '...';
-
+            const items = await fetchRSS(feed.url, feed.source, feed.section);
+            items.forEach(item => {
                 stories.push({
-                    id: `${feed.source.toLowerCase().replace(/\s+/g, '')}-${stories.length + Math.random()}`,
+                    id: `${feed.source.toLowerCase().replace(/\s+/g, '')}-${Math.random().toString(36).substr(2, 9)}`,
                     source: feed.source,
-                    title,
-                    link,
-                    image: image || null,
-                    time: timeDisplay,
-                    timestamp,
-                    section: category || feed.section
+                    title: item.title,
+                    link: item.link,
+                    image: item.imageUrl || null,
+                    time: timeAgo(new Date(item.pubDate).getTime()),
+                    timestamp: new Date(item.pubDate).getTime(),
+                    section: feed.section,
+                    content: item.content
                 });
             });
-
         } catch (e) {
-            console.error(`Generic RSS ${feed.source} Error:`, e);
+            console.error(`Generic RSS Error (${feed.source}):`, e);
         }
     }));
 
