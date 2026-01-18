@@ -1,0 +1,35 @@
+[00:00:01.249] Server  LOG     ✓ Ready in 849ms
+[00:00:11.895] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:20.272] Browser LOG     news-feed.json updated
+[00:00:48.325] Browser LOG     news-feed.json updated
+[00:01:20.832] Browser LOG     news-feed.json updated
+[00:01:27.575] Browser LOG     news-feed.json updated
+[00:03:12.405] Server  WARN    ⚠ Cross origin request detected from 10.0.0.167 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+[00:03:12.426] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:03:36.886] Server  LOG     ✓ Compiled in 327ms
+[00:04:23.171] Server  LOG     ✓ Compiled in 8ms
+[00:05:46.738] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:06:03.181] Server  LOG     Forcing scrape via API...
+[00:08:15.097] Server  LOG     Scrape completed successfully.
+[00:08:15.678] Browser LOG     Forced scrape and JSON update completed
+[00:08:45.273] Server  LOG     Forcing scrape via API...
+[00:15:36.006] Server  LOG     Scrape completed successfully.
+[00:15:36.517] Browser LOG     Forced scrape and JSON update completed
+[00:17:57.882] Server  LOG     Forcing scrape via API...
+[00:19:38.232] Server  LOG     Scrape completed successfully.
+[00:19:38.816] Browser LOG     Forced scrape and JSON update completed
+[00:33:44.312] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:33:51.988] Server  LOG     Forcing scrape via API...
+[00:35:32.678] Server  LOG     Scrape completed successfully.
+[00:35:33.814] Browser LOG     Forced scrape and JSON update completed
+[00:40:42.648] Server  LOG     Forcing scrape via API...
+[00:43:06.909] Server  LOG     Scrape completed successfully.
+[00:43:07.442] Browser LOG     Forced scrape and JSON update completed
+[00:58:24.392] Server  LOG     Forcing scrape via API...
+[00:59:47.730] Server  LOG     Scrape completed successfully.
+[00:59:48.804] Browser LOG     Forced scrape and JSON update completed
+[01:26:31.073] Server  LOG     Forcing scrape via API...
+[01:28:31.477] Server  LOG     Scrape completed successfully.
+[01:28:32.809] Browser LOG     Forced scrape and JSON update completed
+[01:39:53.762] Server  LOG     Forcing scrape via API...

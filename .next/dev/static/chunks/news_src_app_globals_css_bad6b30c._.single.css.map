@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/news/src/app/globals.css"],"sourcesContent":[":root {\n  --background: #0f172a;\n  --foreground: #f1f5f9;\n  --card-bg: #1e293b;\n  --card-border: #334155;\n  --accent: #38bdf8;\n  --accent-secondary: #818cf8;\n  --muted: #94a3b8;\n}\n\n* {\n  box-sizing: border-box;\n  padding: 0;\n  margin: 0;\n}\n\nhtml,\nbody {\n  max-width: 100vw;\n  overflow-x: hidden;\n  background-color: var(--background);\n  color: var(--foreground);\n  font-family: 'Inter', sans-serif;\n}\n\na {\n  color: inherit;\n  text-decoration: none;\n}\n\n::-webkit-scrollbar {\n    width: 8px;\n}\n\n::-webkit-scrollbar-track {\n    background: var(--background);\n}\n\n::-webkit-scrollbar-thumb {\n    background: var(--card-border);\n    border-radius: 4px;\n}\n\n::-webkit-scrollbar-thumb:hover {\n    background: var(--muted);\n}\n"],"names":[],"mappings":"AAAA;;;;;;;;;;AAUA;;;;;;AAMA;;;;;;;;AASA;;;;;AAKA;;;;AAIA;;;;AAIA;;;;;AAKA"}}]
+}

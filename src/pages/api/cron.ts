@@ -218,7 +218,7 @@ async function fetchArticleMetadata(link: string, source?: string): Promise<{ im
         if (!content) {
             let contentSelector = '';
             // if (source === '3News') contentSelector = '.prose'; // Handled above now
-            if (source === 'GhanaWeb') contentSelector = '#medsection1, .article-content-area';
+            if (source === 'GhanaWeb') contentSelector = '#medsection1, #medsectionWideRight, .article-left-col, .article-content-area';
             else if (source === 'AdomOnline') contentSelector = '.td-post-content';
             else if (source === 'MyJoyOnline') contentSelector = '#article-text';
             else if (source === 'Yen' || source === 'yen.com.gh') contentSelector = '.js-article-body, .post-content';

@@ -1,44 +1,33 @@
-import 'dotenv/config';
-import { getAllArticles, getArticleCount, db } from '../lib/db';
+
+import { db } from '../lib/db';
 
 async function main() {
     try {
-        const count = await getArticleCount();
-        console.log(`Total articles in DB: ${count}`);
+        console.log("Checking DB stats...");
 
-        const articles = await getAllArticles(1, true);
-        if (articles.length > 0) {
-            const latest = articles[0];
-            console.log('Latest Article:');
-            console.log(`  Title: ${latest.title}`);
-            console.log(`  Source: ${latest.source}`);
-            console.log(`  Time (Display): ${latest.time}`);
-            console.log(`  Timestamp: ${latest.timestamp}`);
-            console.log(`  Date: ${new Date(Number(latest.timestamp)).toString()}`);
-            console.log(`  Content Length: ${latest.content ? latest.content.length : 'NULL'}`);
-        } else {
-            console.log('No articles found in DB.');
+        // Count by source
+        const result = await db.execute(`
+            SELECT source, COUNT(*) as count, MAX(timestamp) as last_timestamp 
+            FROM articles 
+            WHERE source IN ('MyJoyOnline', 'Nkonkonsa')
+            GROUP BY source
+        `);
+
+        console.log("Source Stats:");
+        for (const row of result.rows) {
+            const date = new Date(Number(row.last_timestamp));
+            console.log(`- ${row.source}: ${row.count} articles. Last: ${date.toLocaleString()}`);
         }
 
-        const gwArticles = await db.execute({
-            sql: 'SELECT * FROM articles WHERE source = ? ORDER BY timestamp DESC LIMIT 1',
-            args: ['GhanaWeb']
-        });
-
-        if (gwArticles.rows.length > 0) {
-            const latest = gwArticles.rows[0];
-            console.log('\nLatest GhanaWeb Article:');
-            console.log(`  Title: ${latest.title}`);
-            console.log(`  Link: ${latest.link}`);
-            console.log(`  Time (Display): ${latest.time}`);
-            console.log(`  Timestamp: ${latest.timestamp}`);
-            console.log(`  Date: ${new Date(Number(latest.timestamp)).toString()}`);
-            console.log(`  Content Length: ${latest.content ? latest.content.length : 'NULL'}`);
-        } else {
-            console.log('\nNo GhanaWeb articles found.');
+        if (result.rows.length === 0) {
+            console.log("No articles found for MyJoyOnline or Nkonkonsa.");
         }
-    } catch (error) {
-        console.error('Error checking DB:', error);
+
+        const total = await db.execute('SELECT COUNT(*) as c FROM articles');
+        console.log(`Total articles in DB: ${total.rows[0].c}`);
+
+    } catch (e) {
+        console.error("DB check failed:", e);
     }
 }
 
