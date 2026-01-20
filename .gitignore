@@ -9,5 +9,6 @@ db_stats*.txt
 *.json
 .env
 .env
+.env*.local
 dist/
 node_modules/

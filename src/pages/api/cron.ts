@@ -596,7 +596,6 @@ const GENERIC_FEEDS = [
     { source: 'GhPage', url: 'https://ghpage.com/feed/', section: 'Entertainment' },
     { source: 'Ameyaw Debrah', url: 'https://ameyawdebrah.com/feed/', section: 'Entertainment' },
     { source: 'YFM Ghana', url: 'https://yfmghana.com/feed/', section: 'Entertainment' },
-    { source: 'Happy Ghana', url: 'https://www.happyghana.com/feed/', section: 'News' },
     { source: 'GhanaSoccerNet', url: 'https://ghanasoccernet.com/feed', section: 'Sports' }
 ];
 

@@ -19,7 +19,6 @@ const GENERIC_FEEDS = [
     { source: 'GhPage', url: 'https://ghpage.com/feed/', section: 'Entertainment' },
     { source: 'Ameyaw Debrah', url: 'https://ameyawdebrah.com/feed/', section: 'Entertainment' },
     { source: 'YFM Ghana', url: 'https://yfmghana.com/feed/', section: 'Entertainment' },
-    { source: 'Happy Ghana', url: 'https://www.happyghana.com/feed/', section: 'News' },
     { source: 'ZionFelix', url: 'https://www.zionfelix.net/feed/', section: 'Entertainment' },
     { source: 'Nkonkonsa', url: 'https://nkonkonsa.com/feed/', section: 'Entertainment' },
     { source: 'MyJoyOnline', url: 'https://www.myjoyonline.com/feed/', section: 'News' },
