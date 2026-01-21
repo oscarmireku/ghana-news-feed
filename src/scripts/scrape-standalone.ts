@@ -1136,7 +1136,7 @@ async function main() {
     console.log(`SCRAPER: Added ${newArticlesCount} new articles`);
 
     const deletedInvalid = await deleteInvalidArticles();
-    const deletedOld = await deleteOldArticles(1000);
+    const deletedOld = await deleteOldArticles(500);
     console.log(`SCRAPER: Cleanup -> Removed ${deletedInvalid} invalid and ${deletedOld} old articles.`);
 
     console.log('SCRAPER: Done.');
