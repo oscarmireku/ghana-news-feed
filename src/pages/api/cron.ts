@@ -596,7 +596,10 @@ const GENERIC_FEEDS = [
     { source: 'GhPage', url: 'https://ghpage.com/feed/', section: 'Entertainment' },
     { source: 'Ameyaw Debrah', url: 'https://ameyawdebrah.com/feed/', section: 'Entertainment' },
     { source: 'YFM Ghana', url: 'https://yfmghana.com/feed/', section: 'Entertainment' },
-    { source: 'GhanaSoccerNet', url: 'https://ghanasoccernet.com/feed', section: 'Sports' }
+    { source: 'GhanaSoccerNet', url: 'https://ghanasoccernet.com/feed', section: 'Sports' },
+    { source: 'Tech Labari', url: 'https://techlabari.com/feed/', section: 'Tech' },
+    { source: 'ZionFelix', url: 'https://www.zionfelix.net/feed/', section: 'Entertainment' },
+    { source: 'Nkonkonsa', url: 'https://nkonkonsa.com/feed/', section: 'Entertainment' }
 ];
 
 async function scrapeGenericRSS(): Promise<Story[]> {
@@ -656,19 +659,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     allStories = Array.from(uniqueMap.values());
 
     // Fuzzy deduplication: Remove stories with similar titles (same story from different sources)
-    const deduplicatedStories: Story[] = [];
-    let duplicatesRemoved = 0;
+    // DISABLED: User reports missing feeds. We want to keep all sources populated even if titles match.
+    // const deduplicatedStories: Story[] = [];
+    // let duplicatesRemoved = 0;
 
-    for (const story of allStories) {
-        if (!isDuplicateStory(story, deduplicatedStories, 0.75)) {
-            deduplicatedStories.push(story);
-        } else {
-            duplicatesRemoved++;
-        }
-    }
+    // for (const story of allStories) {
+    //     if (!isDuplicateStory(story, deduplicatedStories, 0.75)) {
+    //         deduplicatedStories.push(story);
+    //     } else {
+    //         duplicatesRemoved++;
+    //     }
+    // }
 
-    allStories = deduplicatedStories;
-    console.log(`CRON: Removed ${duplicatesRemoved} duplicate stories based on title similarity`);
+    // allStories = deduplicatedStories;
+    console.log(`CRON: Fuzzy deduplication DISABLED to ensure all sources populate.`);
 
     // sort
     allStories.sort((a, b) => b.timestamp - a.timestamp);
@@ -681,9 +685,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const newStories = allStories.filter(story => !existingLinks.has(story.link));
     console.log(`CRON: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
-    // Deep Fetch Metadata ONLY for NEW articles to ensure correct images and dates
-    const batch = newStories.slice(0, 20); // Limit to 20 articles per scrape to prevent Vercel 60s timeout
+    // FAIRNESS LOGIC: Ensure at least the latest story from EACH source is included
+    const storiesBySource = new Map<string, Story[]>();
+    newStories.forEach(s => {
+        if (!storiesBySource.has(s.source)) storiesBySource.set(s.source, []);
+        storiesBySource.get(s.source)!.push(s);
+    });
 
+    const priorityBatch: Story[] = [];
+    const remainingBatch: Story[] = [];
+
+    storiesBySource.forEach((stories) => {
+        // Sort by time (newest first) to get the best candidate
+        stories.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Take the top 1 for priority
+        priorityBatch.push(stories[0]);
+
+        // Put the rest in the pool
+        remainingBatch.push(...stories.slice(1));
+    });
+
+    // Shuffle the survivors
+    remainingBatch.sort(() => Math.random() - 0.5);
+
+    // Combine: Priority first, then fill up to 20
+    const LIMIT = 20;
+    const fillCount = Math.max(0, LIMIT - priorityBatch.length);
+    // Ensure we don't exceed LIMIT even with priority items
+    const batch = [...priorityBatch.slice(0, LIMIT), ...remainingBatch.slice(0, fillCount)];
+
+    console.log(`CRON: Fairness Check - Prioritized ${Math.min(priorityBatch.length, LIMIT)} items (1 per source), filled with ${Math.min(fillCount, remainingBatch.length)} others.`);
     console.log(`CRON: Fetching metadata for ${batch.length} new articles...`);
 
     await Promise.all(batch.map(async (story) => {
@@ -718,10 +750,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.log(`CRON: Filtered out ${oldStoriesFiltered} articles older than 7 days`);
     }
 
+    // REMOVED STRICT IMAGE FILTER: Allow articles without images to ensure all feeds populate
+    // Only filter out SVG images which are likely icons
     const storiesWithImages = recentStories.filter(story =>
-        story.image !== null &&
-        story.image !== '' &&
-        !story.image.toLowerCase().endsWith('.svg')
+        !story.image || !story.image.toLowerCase().endsWith('.svg')
     );
     console.log(`CRON: Filtered -> ${storiesWithImages.length} articles to insert`);
 
