@@ -296,7 +296,7 @@ async function scrapeGhanaWeb(): Promise<Story[]> {
                 candidates = $('a[href*="artikel.php"], a[href*="/NewsArchive/"], a[href*="/SportsArchive/"], a[href*="/business/"]');
             }
 
-            candidates.slice(0, 10).each((_, el) => {
+            candidates.slice(0, 5).each((_, el) => {
                 const a = $(el).is('a') ? $(el) : $(el).find('a').first();
                 const link = a.attr('href');
                 let title = a.attr('title') || a.text().trim();

@@ -330,7 +330,7 @@ export async function scrapeGhanaWeb(): Promise<Story[]> {
             let count = 0;
 
             links.each((_, el) => {
-                if (count >= 10) return false; // Stop after 10 valid articles per section
+                if (count >= 5) return false; // Stop after 5 valid articles per section
 
                 const a = $(el);
                 const link = a.attr('href');
