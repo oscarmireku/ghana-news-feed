@@ -587,7 +587,6 @@ const GENERIC_FEEDS = [
     { source: 'Graphic Online', url: 'https://www.graphic.com.gh/news/general-news?format=feed', section: 'News' },
     { source: 'Ghanaian Times', url: 'https://www.ghanaiantimes.com.gh/feed/', section: 'News' },
     { source: 'Starr FM', url: 'https://starrfm.com.gh/feed/', section: 'News' },
-    { source: 'News Ghana', url: 'https://newsghana.com.gh/feed/', section: 'News' },
     { source: 'The B&FT', url: 'https://thebftonline.com/feed/', section: 'Business' },
     { source: 'Atinka Online', url: 'https://atinkaonline.com/feed/', section: 'News' },
     { source: 'Asaase Radio', url: 'https://asaaseradio.com/feed/', section: 'News' },
