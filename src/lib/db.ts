@@ -212,3 +212,8 @@ export async function deleteInvalidArticles(): Promise<number> {
   }
   return count;
 }
+
+export async function deleteAllArticles(): Promise<number> {
+  const rs = await db.execute('DELETE FROM articles');
+  return rs.rowsAffected;
+}

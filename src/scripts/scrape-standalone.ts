@@ -8,7 +8,7 @@ if (!process.env.TURSO_DATABASE_URL && process.env.CI) {
 }
 
 import * as cheerio from 'cheerio';
-import { insertArticles, deleteOldArticles, deleteInvalidArticles, getAllLinks, getLatestTimestampsBySource, Article } from '../lib/db';
+import { insertArticles, deleteOldArticles, deleteAllArticles, deleteInvalidArticles, getAllLinks, getLatestTimestampsBySource, Article } from '../lib/db';
 import { rateLimitedFetch } from '../lib/rate-limited-fetch';
 import { fetchRSS, NewsItem } from '../lib/rss';
 
@@ -959,6 +959,7 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 
 async function main() {
     console.log('SCRAPER: Starting job...');
+
 
     const [gwStories, adomStories, peaceStories, joyStories, citiStories, gsnStories, ghPageStories, genericStories] = await Promise.all([
         scrapeGhanaWeb(),
