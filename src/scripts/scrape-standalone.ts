@@ -1030,21 +1030,17 @@ async function main() {
 
         // Incremental Scraping Check:
         // Use the per-source latest timestamp to filter out old news.
-        // Safety margin: 1 hour (3600000ms) to allow for clock diffs, republished content, and parsing errors.
-        // If story.timestamp is 0 or Date.now() (fallback), we let it through to be deeper checked.
-        // Only filter if we have a valid timestamp on the story AND in the DB.
+        // Safety margin: 4 hours (4 * 3600000ms) to allow for clock diffs, republished content, and parsing errors.
         const lastSeen = sourceTimestamps.get(story.source) || 0;
-        if (lastSeen > 0 && story.timestamp > 0 && story.timestamp < (lastSeen - 3600000)) {
-            // console.log(`[OLD] Dropping ${story.source} - ${story.title} (Time: ${new Date(story.timestamp).toISOString()} vs Last: ${new Date(lastSeen).toISOString()})`);
+        if (lastSeen > 0 && story.timestamp > 0 && story.timestamp < (lastSeen - (4 * 3600000))) {
             return false;
         }
 
         return true;
     });
     console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
-    console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
-    // FAIRNESS LOGIC: Ensure at least the latest story from EACH source is included
+    // FAIRNESS LOGIC: Ensure at least the latest 2 stories from EACH source are included
     const storiesBySource = new Map<string, typeof newStories>();
     newStories.forEach(s => {
         if (!storiesBySource.has(s.source)) storiesBySource.set(s.source, []);
@@ -1058,11 +1054,11 @@ async function main() {
         // Sort by time (newest first) to get the best candidate
         stories.sort((a, b) => b.timestamp - a.timestamp);
 
-        // Take the top 1 for priority
-        priorityBatch.push(stories[0]);
+        // Take the top 2 for priority
+        priorityBatch.push(...stories.slice(0, 2));
 
         // Put the rest in the pool
-        remainingBatch.push(...stories.slice(1));
+        remainingBatch.push(...stories.slice(2));
     });
 
     // Shuffle the survivors

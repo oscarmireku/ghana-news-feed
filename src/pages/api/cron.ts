@@ -745,7 +745,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const newStories = allStories.filter(story => !existingLinks.has(story.link));
     console.log(`CRON: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
 
-    // FAIRNESS LOGIC: Ensure at least the latest story from EACH source is included
+    // FAIRNESS LOGIC: Ensure at least the latest 2 stories from EACH source are included
     const storiesBySource = new Map<string, Story[]>();
     newStories.forEach(s => {
         if (!storiesBySource.has(s.source)) storiesBySource.set(s.source, []);
@@ -759,11 +759,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Sort by time (newest first) to get the best candidate
         stories.sort((a, b) => b.timestamp - a.timestamp);
 
-        // Take the top 1 for priority
-        priorityBatch.push(stories[0]);
+        // Take the top 2 for priority
+        priorityBatch.push(...stories.slice(0, 2));
 
         // Put the rest in the pool
-        remainingBatch.push(...stories.slice(1));
+        remainingBatch.push(...stories.slice(2));
     });
 
     // Shuffle the survivors
