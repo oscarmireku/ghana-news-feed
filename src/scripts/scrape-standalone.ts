@@ -253,12 +253,13 @@ export async function fetchArticleMetadata(link: string, source: string): Promis
         if (source === '3News') robustSelectors.unshift('.prose');
         if (source === 'Yen' || source === 'yen.com.gh') robustSelectors.unshift('.js-article-body', '.post-content');
         if (source === 'Pulse' || source === 'pulse.com.gh') robustSelectors.unshift('article', '.max-w-\\[620px\\]', '.article-content');
+        if (source === 'GhPage') robustSelectors.unshift('.td-post-content');
 
         for (const selector of robustSelectors) {
             const el = $(selector).first();
             if (el.length > 0) {
                 // Remove unwanted elements
-                el.find('script, style, iframe, .ad, .advertisement, .related-articles, .related-posts, .ads').remove();
+                el.find('script, style, iframe, .ad, .advertisement, .related-articles, .related-posts, .ads, .td-post-sharing-top, .td-post-sharing-bottom').remove();
 
                 const htmlContent = el.html();
                 if (htmlContent && htmlContent.length > 50) {
@@ -276,8 +277,8 @@ export async function fetchArticleMetadata(link: string, source: string): Promis
                 }
             }
         }
+        // ...
 
-        // Fallback for tricky sites (like GhanaWeb unstructured)
         if (!content && source === 'GhanaWeb') {
             const pBlocks = $('p').parent().filter((i, el) => $(el).find('p').length > 3).first();
             if (pBlocks.length) {
@@ -614,6 +615,67 @@ async function scrapePeaceFM_HTML(): Promise<Story[]> {
 
 
 // ---------------------------------------------------------------------------
+// Source: GhPage (Custom RSS Parer)
+// ---------------------------------------------------------------------------
+async function scrapeGhPage(): Promise<Story[]> {
+    const stories: Story[] = [];
+    const source = 'GhPage';
+    try {
+        console.log(`SCRAPER: Fetching ${source} RSS feed (Manual Mode)...`);
+        const res = await rateLimitedFetch('https://ghpage.com/feed/', { skipCache: true });
+        if (!res.ok) {
+            console.error(`${source}: Failed to fetch RSS feed. Status: ${res.status}`);
+            return [];
+        }
+        const xml = await res.text();
+        const $ = cheerio.load(xml, { xmlMode: true });
+        const items = $('item').toArray();
+        const recentItems = items.slice(0, 20);
+
+        console.log(`${source}: Found ${recentItems.length} items. Fetching details...`);
+
+        for (const el of recentItems) {
+            const title = $(el).find('title').text().trim();
+            const link = $(el).find('link').text().trim();
+            const pubDate = $(el).find('pubDate').text().trim();
+
+            if (!link) continue;
+
+            let timestamp = Date.now();
+            let timeDisplay = 'Recent';
+            if (pubDate) {
+                const parsed = parsePublicationDate(pubDate);
+                timestamp = parsed.timestamp;
+                timeDisplay = parsed.display;
+            }
+
+            // EXTRACT FROM RSS DIRECTLY
+            let image = $(el).find('media\\:content').attr('url') ||
+                $(el).find('media\\:thumbnail').attr('url') ||
+                $(el).find('enclosure').attr('url');
+
+            // Fallback content from RSS
+            let content = $(el).find('content\\:encoded').text();
+
+            stories.push({
+                id: `ghpage-${Math.random().toString(36).substring(2, 9)}`,
+                source: 'GhPage',
+                title,
+                link,
+                image: image || null,
+                time: timeDisplay,
+                timestamp,
+                section: 'Entertainment',
+                content: content
+            });
+        }
+    } catch (e) {
+        console.error(`${source}: RSS Scrape Error:`, e);
+    }
+    return stories;
+}
+
+// ---------------------------------------------------------------------------
 // Source: Generic RSS Scraper
 // ---------------------------------------------------------------------------
 const GENERIC_FEEDS = [
@@ -632,7 +694,7 @@ const GENERIC_FEEDS = [
     { source: 'Asaase Radio', url: 'https://asaaseradio.com/feed/', section: 'News' },
     { source: 'The Herald', url: 'https://theheraldghana.com/feed/', section: 'News' },
     { source: 'The Chronicle', url: 'https://thechronicle.com.gh/feed/', section: 'News' },
-    { source: 'GhPage', url: 'https://ghpage.com/feed/', section: 'Entertainment' },
+    // { source: 'GhPage', url: 'https://ghpage.com/feed/', section: 'Entertainment' }, // Moved to custom scraper
     { source: 'Ameyaw Debrah', url: 'https://ameyawdebrah.com/feed/', section: 'Entertainment' },
     { source: 'YFM Ghana', url: 'https://yfmghana.com/feed/', section: 'Entertainment' },
     { source: 'ZionFelix', url: 'https://www.zionfelix.net/feed/', section: 'Entertainment' },
@@ -898,17 +960,18 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 async function main() {
     console.log('SCRAPER: Starting job...');
 
-    const [gwStories, adomStories, peaceStories, joyStories, citiStories, gsnStories, genericStories] = await Promise.all([
+    const [gwStories, adomStories, peaceStories, joyStories, citiStories, gsnStories, ghPageStories, genericStories] = await Promise.all([
         scrapeGhanaWeb(),
         scrapeAdomOnline(),
         scrapePeaceFM(),
         scrapeMyJoyOnline(),
         scrapeCitiNewsRoom(),
         scrapeGhanaSoccerNet(),
+        scrapeGhPage(),
         scrapeGenericRSS()
     ]);
 
-    let allStories = [...gwStories, ...adomStories, ...peaceStories, ...joyStories, ...citiStories, ...gsnStories, ...genericStories];
+    let allStories = [...gwStories, ...adomStories, ...peaceStories, ...joyStories, ...citiStories, ...gsnStories, ...ghPageStories, ...genericStories];
 
     console.log(`SCRAPER: Fetched ${allStories.length} raw stories.`);
     console.log(`SCRAPER: Fetched ${allStories.length} raw stories.`);

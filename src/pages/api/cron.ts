@@ -223,6 +223,7 @@ async function fetchArticleMetadata(link: string, source?: string): Promise<{ im
             else if (source === 'MyJoyOnline') contentSelector = '#article-text';
             else if (source === 'Yen' || source === 'yen.com.gh') contentSelector = '.js-article-body, .post-content';
             else if (source === 'Pulse' || source === 'pulse.com.gh') contentSelector = 'article, .max-w-\\[620px\\], .article-content';
+            else if (source === 'GhPage') contentSelector = '.td-post-content';
 
             // Generic fallback selectors
             if (!contentSelector) {
@@ -578,12 +579,71 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Source: GhPage (Custom RSS Parer)
+// ---------------------------------------------------------------------------
+async function scrapeGhPage(): Promise<Story[]> {
+    const stories: Story[] = [];
+    const source = 'GhPage';
+    try {
+        console.log(`SCRAPER: Fetching ${source} RSS feed...`);
+        const res = await fetch('https://ghpage.com/feed/', { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        if (!res.ok) {
+            console.error(`${source}: Failed to fetch RSS feed. Status: ${res.status}`);
+            return [];
+        }
+        const xml = await res.text();
+        const $ = cheerio.load(xml, { xmlMode: true });
+        const items = $('item').toArray();
+        const recentItems = items.slice(0, 20);
+
+        for (const el of recentItems) {
+            const title = $(el).find('title').text().trim();
+            const link = $(el).find('link').text().trim();
+            const pubDate = $(el).find('pubDate').text().trim();
+
+            if (!link) continue;
+
+            let timestamp = Date.now();
+            let timeDisplay = 'Recent';
+            if (pubDate) {
+                const parsed = parsePublicationDate(pubDate);
+                timestamp = parsed.timestamp;
+                timeDisplay = parsed.display;
+            }
+
+            // EXTRACT FROM RSS DIRECTLY
+            let image = $(el).find('media\\:content').attr('url') ||
+                $(el).find('media\\:thumbnail').attr('url') ||
+                $(el).find('enclosure').attr('url');
+
+            // Fallback content from RSS
+            let content = $(el).find('content\\:encoded').text();
+
+            stories.push({
+                id: `ghpage-${Math.random().toString(36).substr(2, 9)}`,
+                source: 'GhPage',
+                title,
+                link,
+                image: image || null,
+                time: timeDisplay,
+                timestamp,
+                section: 'Entertainment',
+                content: content
+            });
+        }
+    } catch (e) {
+        console.error(`${source}: RSS Scrape Error:`, e);
+    }
+    return stories;
+}
+
+// ---------------------------------------------------------------------------
 // Source: Generic RSS Scraper
 // ---------------------------------------------------------------------------
 const GENERIC_FEEDS = [
     { source: 'yen.com.gh', url: 'https://yen.com.gh/rss/all.rss', section: 'News' },
     { source: 'pulse.com.gh', url: 'https://www.pulse.com.gh/rss-articles.xml', section: 'News' },
-    { source: 'GNA', url: 'https://gna.org.gh/feed/', section: 'News' },
+    // { source: 'GNA', url: 'https://gna.org.gh/feed/', section: 'News' }, // Broken XML
     { source: 'Graphic Online', url: 'https://www.graphic.com.gh/news/general-news?format=feed', section: 'News' },
     { source: 'Ghanaian Times', url: 'https://www.ghanaiantimes.com.gh/feed/', section: 'News' },
     { source: 'Starr FM', url: 'https://starrfm.com.gh/feed/', section: 'News' },
@@ -592,7 +652,7 @@ const GENERIC_FEEDS = [
     { source: 'Asaase Radio', url: 'https://asaaseradio.com/feed/', section: 'News' },
     { source: 'The Herald', url: 'https://theheraldghana.com/feed/', section: 'News' },
     { source: 'The Chronicle', url: 'https://thechronicle.com.gh/feed/', section: 'News' },
-    { source: 'GhPage', url: 'https://ghpage.com/feed/', section: 'Entertainment' },
+    // GhPage moved to custom scraper
     { source: 'Ameyaw Debrah', url: 'https://ameyawdebrah.com/feed/', section: 'Entertainment' },
     { source: 'YFM Ghana', url: 'https://yfmghana.com/feed/', section: 'Entertainment' },
     { source: 'GhanaSoccerNet', url: 'https://ghanasoccernet.com/feed', section: 'Sports' },
@@ -637,7 +697,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log('CRON: Starting scrape...');
 
-    const [ghanaStories, adomStories, peaceStories, joyStories, threeNewsStories, dailyGuideResult, citiStories, genericStories] = await Promise.all([
+    const [ghanaStories, adomStories, peaceStories, joyStories, threeNewsStories, dailyGuideResult, citiStories, ghPageStories, genericStories] = await Promise.all([
         scrapeGhanaWeb(),
         scrapeAdomOnline(),
         scrapePeaceFM(),
@@ -645,12 +705,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         scrape3News(),
         scrapeDailyGuide(),
         scrapeCitiNewsRoom(),
+        scrapeGhPage(),
         scrapeGenericRSS()
     ]);
 
     const dailyGuideStories = dailyGuideResult.stories;
 
-    let allStories = [...ghanaStories, ...adomStories, ...peaceStories, ...joyStories, ...threeNewsStories, ...dailyGuideStories, ...citiStories, ...genericStories];
+    let allStories = [...ghanaStories, ...adomStories, ...peaceStories, ...joyStories, ...threeNewsStories, ...dailyGuideStories, ...citiStories, ...ghPageStories, ...genericStories];
 
     // Deduplicate by link
     const uniqueMap = new Map();
