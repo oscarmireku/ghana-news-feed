@@ -821,7 +821,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log(`CRON: Added ${newArticlesCount} new articles`);
 
     const deletedInvalid = await deleteInvalidArticles();
-    const deletedOld = await deleteOldArticles(500);
+    const deletedOld = await deleteOldArticles(1000);
     console.log(`CRON: Cleanup -> Removed ${deletedInvalid} invalid and ${deletedOld} old articles.`);
 
     res.status(200).json({
