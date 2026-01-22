@@ -12,6 +12,8 @@ import { insertArticles, deleteOldArticles, deleteAllArticles, deleteInvalidArti
 import { rateLimitedFetch } from '../lib/rate-limited-fetch';
 import { fetchRSS, NewsItem } from '../lib/rss';
 
+let isRepopulate = false;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -330,7 +332,8 @@ export async function scrapeGhanaWeb(): Promise<Story[]> {
             let count = 0;
 
             links.each((_, el) => {
-                if (count >= 5) return false; // Stop after 5 valid articles per section
+                const limit = isRepopulate ? 20 : 5;
+                if (count >= limit) return false; // Stop after limit reached
 
                 const a = $(el);
                 const link = a.attr('href');
@@ -427,7 +430,8 @@ async function scrapeAdomOnline(): Promise<Story[]> {
             const xml = await res.text();
             const $ = cheerio.load(xml, { xmlMode: true });
 
-            $('item').slice(0, 5).each((_, el) => {
+            const limit = isRepopulate ? 15 : 5;
+            $('item').slice(0, limit).each((_, el) => {
                 const title = $(el).find('title').text().trim();
                 const link = $(el).find('link').text().trim();
                 const pubDate = $(el).find('pubDate').text().trim();
@@ -478,7 +482,8 @@ async function scrapeAdomOnline(): Promise<Story[]> {
 // ---------------------------------------------------------------------------
 async function scrapePeaceFM(): Promise<Story[]> {
     try {
-        const response = await rateLimitedFetch('https://articles-engine.peacefmonline.com/v1/articles?limit=30', { skipCache: true });
+        const limit = isRepopulate ? 80 : 30;
+        const response = await rateLimitedFetch(`https://articles-engine.peacefmonline.com/v1/articles?limit=${limit}`, { skipCache: true });
         if (!response.ok) return [];
 
         const json = await response.json() as any;
@@ -729,7 +734,8 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
 
             const articles = $('.jeg_post');
 
-            articles.slice(0, 15).each((_, el) => {
+            const limit = isRepopulate ? 30 : 15;
+            articles.slice(0, limit).each((_, el) => {
                 const titleEl = $(el).find('.jeg_post_title a').first();
                 const link = titleEl.attr('href');
                 let title = titleEl.text().trim();
@@ -929,21 +935,28 @@ function mapNewsItemsToStories(items: NewsItem[], defaultSection: string): Story
 
 async function scrapeMyJoyOnline(): Promise<Story[]> {
     console.log('SCRAPER: Scraping MyJoyOnline (RSS)...');
+    const limit = isRepopulate ? 30 : 20;
     const items = await fetchRSS('https://www.myjoyonline.com/feed/', 'MyJoyOnline', 'News');
-    return mapNewsItemsToStories(items.slice(0, 20), 'News');
+    return mapNewsItemsToStories(items.slice(0, limit), 'News');
 }
 
 async function scrapeGenericRSS(): Promise<Story[]> {
     console.log('SCRAPER: Scraping Generic RSS Feeds...');
     const allStories: Story[] = [];
+    const limit = isRepopulate ? 30 : 20;
 
     // Process each feed with individual error handling to prevent cascade failures
     await Promise.all(GENERIC_FEEDS.map(async (feed) => {
         try {
             const items = await fetchRSS(feed.url, feed.source, feed.section);
-            const stories = mapNewsItemsToStories(items.slice(0, 20), feed.section);
+            const stories = mapNewsItemsToStories(items.slice(0, limit), feed.section);
             allStories.push(...stories);
-            console.log(`[SUCCESS] ${feed.source}: Fetched ${stories.length} articles`);
+
+            if (stories.length > 0) {
+                console.log(`[SUCCESS] ${feed.source}: Fetched ${stories.length} articles`);
+            } else {
+                console.log(`[WARNING] ${feed.source}: Fetched 0 articles (feed may be empty or failed)`);
+            }
         } catch (error) {
             console.error(`[FAILED] ${feed.source}: ${(error as Error).message}`);
             // Continue with other feeds even if this one fails
@@ -958,8 +971,14 @@ async function scrapeGenericRSS(): Promise<Story[]> {
 // ---------------------------------------------------------------------------
 
 async function main() {
-    console.log('SCRAPER: Starting job...');
+    isRepopulate = process.argv.includes('--repopulate');
+    console.log(`SCRAPER: Starting job... ${isRepopulate ? '(REPOPULATE MODE)' : ''}`);
 
+    if (isRepopulate) {
+        console.log('SCRAPER: Clearing all articles from database for repopulation...');
+        const deletedCount = await deleteAllArticles();
+        console.log(`SCRAPER: Deleted ${deletedCount} articles.`);
+    }
 
     const [gwStories, adomStories, peaceStories, joyStories, citiStories, gsnStories, ghPageStories, genericStories] = await Promise.all([
         scrapeGhanaWeb(),
@@ -1021,6 +1040,9 @@ async function main() {
 
     // Filter out articles we already have
     const newStories = allStories.filter(story => {
+        // If repopulating, we don't care about existing links (DB should be empty anyway)
+        if (isRepopulate) return true;
+
         const exists = existingLinks.has(story.link);
         if (exists && ['MyJoyOnline', 'Nkonkonsa'].includes(story.source)) {
             // console.log(`[EXISTING] Skipping ${story.source}: ${story.title}`);
@@ -1038,7 +1060,7 @@ async function main() {
 
         return true;
     });
-    console.log(`SCRAPER: Found ${newStories.length} new articles (skipped ${allStories.length - newStories.length} existing)`);
+    console.log(`SCRAPER: Found ${newStories.length} new articles ${isRepopulate ? '' : `(skipped ${allStories.length - newStories.length} existing)`}`);
 
     // FAIRNESS LOGIC: Ensure at least the latest 2 stories from EACH source are included
     const storiesBySource = new Map<string, typeof newStories>();
@@ -1054,22 +1076,23 @@ async function main() {
         // Sort by time (newest first) to get the best candidate
         stories.sort((a, b) => b.timestamp - a.timestamp);
 
-        // Take the top 2 for priority
-        priorityBatch.push(...stories.slice(0, 2));
+        // Take more for priority in repopulate mode (e.g., 5 articles per source)
+        const priorityCount = isRepopulate ? 10 : 2;
+        priorityBatch.push(...stories.slice(0, priorityCount));
 
         // Put the rest in the pool
-        remainingBatch.push(...stories.slice(2));
+        remainingBatch.push(...stories.slice(priorityCount));
     });
 
     // Shuffle the survivors
     remainingBatch.sort(() => Math.random() - 0.5);
 
-    // Combine: Priority first, then fill up to 100
-    const LIMIT = 100;
+    // Combine: Priority first, then fill up to LIMIT
+    const LIMIT = isRepopulate ? 300 : 100;
     const fillCount = Math.max(0, LIMIT - priorityBatch.length);
     const batch = [...priorityBatch, ...remainingBatch.slice(0, fillCount)];
 
-    console.log(`SCRAPER: Fairness Check - Prioritized ${priorityBatch.length} items (1 per source), filled with ${Math.min(fillCount, remainingBatch.length)} others.`);
+    console.log(`SCRAPER: Fairness Check - Prioritized up to ${isRepopulate ? 10 : 2} items per source (Total Priority: ${priorityBatch.length}), filled with ${Math.min(fillCount, remainingBatch.length)} others.`);
     console.log(`SCRAPER: Fetching metadata for ${batch.length} new articles (limited from ${newStories.length})...`);
 
     // Process sequentially to be gentle on servers and avoid rate limiting
