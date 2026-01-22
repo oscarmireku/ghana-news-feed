@@ -254,8 +254,9 @@ export async function fetchArticleMetadata(link: string, source: string): Promis
         if (source === 'GhanaWeb') robustSelectors.unshift('#medsection1', '.article-content-area');
         if (source === '3News') robustSelectors.unshift('.prose');
         if (source === 'Yen' || source === 'yen.com.gh') robustSelectors.unshift('.js-article-body', '.post-content');
-        if (source === 'Pulse' || source === 'pulse.com.gh') robustSelectors.unshift('article', '.max-w-\\[620px\\]', '.article-content');
+        if (source === 'Pulse' || source === 'pulse.com.gh') robustSelectors.unshift('.article__body', '.post-body', 'article p');
         if (source === 'GhPage') robustSelectors.unshift('.td-post-content');
+        if (source === 'Nkonkonsa' || source === 'nkonkonsa.com') robustSelectors.unshift('.entry-content', '.post-content');
 
         for (const selector of robustSelectors) {
             const el = $(selector).first();
@@ -280,6 +281,21 @@ export async function fetchArticleMetadata(link: string, source: string): Promis
             }
         }
         // ...
+
+        // Fallback: If no content found with selectors, try gathering all paragraphs
+        if (!content && (source === 'Pulse' || source === 'pulse.com.gh' || source === 'Nkonkonsa')) {
+            const paragraphs: string[] = [];
+            $('p').each((_, el) => {
+                const text = $(el).text().trim();
+                // Filter out short paragraphs and common footer/header text
+                if (text.length > 50 && !text.toLowerCase().includes('cookie') && !text.toLowerCase().includes('subscribe')) {
+                    paragraphs.push(`<p>${text}</p>`);
+                }
+            });
+            if (paragraphs.length >= 3) {
+                content = paragraphs.slice(0, 15).join(''); // Take first 15 paragraphs
+            }
+        }
 
         if (!content && source === 'GhanaWeb') {
             const pBlocks = $('p').parent().filter((i, el) => $(el).find('p').length > 3).first();
