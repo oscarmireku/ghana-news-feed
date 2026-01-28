@@ -1,52 +1,28 @@
 
-import { rateLimitedFetch } from '../lib/rate-limited-fetch';
-import * as cheerio from 'cheerio';
-
-function parsePublicationDate(dateStr: string): { timestamp: number; display: string } {
-    if (!dateStr || dateStr.trim() === '') {
-        return { timestamp: Date.now(), display: 'Recent' };
-    }
-
-    let cleaned = dateStr.trim();
-    const hasTimezone = /GMT|UTC|Z|[+-]\d{2}:?\d{2}/.test(cleaned);
-
-    if (!hasTimezone) {
-        cleaned += ' GMT';
-    }
-
-    const d = new Date(cleaned);
-
-    if (!isNaN(d.getTime())) {
-        const timestamp = d.getTime();
-        const display = new Date(timestamp).toLocaleString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            month: 'short',
-            day: 'numeric'
-        });
-        return { timestamp, display };
-    }
-
-    return { timestamp: Date.now(), display: 'Recent' };
-}
+import { scrapeCitiNewsRoom } from './scrape-standalone';
 
 async function debugCiti() {
-    console.log("Fetching CitiNewsRoom...");
-    const res = await rateLimitedFetch('https://citinewsroom.com/news/', { skipCache: true });
-    const html = await res.text();
-    const $ = cheerio.load(html);
+    console.log("Running updated CitiNewsRoom scraper...");
 
-    console.log("Processing articles...");
-    $('.jeg_post').slice(0, 5).each((i, el) => {
-        const title = $(el).find('.jeg_post_title a').first().text().trim();
-        const dateStr = $(el).find('.jeg_meta_date').text().trim();
-        const parsed = parsePublicationDate(dateStr);
+    try {
+        const stories = await scrapeCitiNewsRoom();
 
-        console.log(`[${i}] ${title}`);
-        console.log(`    Date String: '${dateStr}'`);
-        console.log(`    Parsed: ${parsed.display} (${parsed.timestamp})`);
-        if (parsed.display === 'Recent') console.log("    -> FAILED PARSE (using Now)");
-    });
+        console.log(`\nFetched ${stories.length} stories.\n`);
+
+        stories.slice(0, 10).forEach((story, i) => {
+            console.log(`[${i}] ${story.title}`);
+            console.log(`    Link: ${story.link}`);
+            console.log(`    Date: ${story.time} (${story.timestamp})`);
+            console.log(`    Image: ${story.image ? 'Yes' : 'No'}`);
+
+            if (story.time === 'Recent') {
+                console.log("    -> WARNING: Date parsing failed or fell back to Recent");
+            }
+        });
+
+    } catch (e) {
+        console.error("Error running scraper:", e);
+    }
 }
 
 debugCiti();

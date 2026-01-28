@@ -726,7 +726,7 @@ const GENERIC_FEEDS = [
 // ---------------------------------------------------------------------------
 // Source: CitiNewsRoom (HTML Scrape Sections)
 // ---------------------------------------------------------------------------
-async function scrapeCitiNewsRoom(): Promise<Story[]> {
+export async function scrapeCitiNewsRoom(): Promise<Story[]> {
     const sections = [
         { name: 'News', url: 'https://citinewsroom.com/news/' },
         { name: 'Business', url: 'https://citinewsroom.com/category/business/' },
@@ -738,12 +738,12 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
     const stories: Story[] = [];
     const seenLinks = new Set<string>();
 
-    await Promise.all(sections.map(async (sec) => {
+    for (const sec of sections) {
         try {
             const res = await rateLimitedFetch(sec.url, { skipCache: true });
             if (!res.ok) {
                 console.error(`CitiNewsRoom ${sec.name}: Failed to fetch. Status: ${res.status}`);
-                return;
+                continue;
             }
             const html = await res.text();
             const $ = cheerio.load(html);
@@ -751,10 +751,16 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
             const articles = $('.jeg_post');
 
             const limit = isRepopulate ? 30 : 15;
-            articles.slice(0, limit).each((_, el) => {
+            const articleElements = articles.slice(0, limit).toArray();
+
+            for (const el of articleElements) {
                 const titleEl = $(el).find('.jeg_post_title a').first();
                 const link = titleEl.attr('href');
                 let title = titleEl.text().trim();
+
+                if (!link || !title || title.length <= 5 || seenLinks.has(link)) {
+                    continue;
+                }
 
                 let image = $(el).find('.jeg_thumb img').attr('data-src') ||
                     $(el).find('.jeg_thumb img').attr('src');
@@ -771,36 +777,48 @@ async function scrapeCitiNewsRoom(): Promise<Story[]> {
                 }
 
                 let dateStr = $(el).find('.jeg_meta_date').text().trim();
-                const { timestamp, display } = parsePublicationDate(dateStr);
+                let { timestamp, display } = parsePublicationDate(dateStr);
 
-                if (link && title && title.length > 5 && !seenLinks.has(link)) {
-                    seenLinks.add(link);
-
-                    // Specific section from article if available, otherwise generic section
-                    let category = $(el).find('.jeg_post_category span a').text().trim();
-                    if (!category) category = sec.name;
-
-                    // Explicitly skip Entertainment articles even if found in other sections
-                    if (category.toLowerCase().includes('entertainment') || link.toLowerCase().includes('/entertainment/')) {
-                        return;
+                // FIX: If date is missing/Recent, fetch the article page to get the date
+                if ((display === 'Recent' || !dateStr) && link.includes('/2026/')) {
+                    console.log(`[Citi] Missing date for "${title}". Fetching article...`);
+                    const meta = await fetchArticleMetadata(link, 'CitiNewsRoom');
+                    if (meta.timestamp) {
+                        timestamp = meta.timestamp;
+                        display = meta.time || timeAgo(timestamp);
+                        console.log(`[Citi] Found date: ${display}`);
                     }
-
-                    stories.push({
-                        id: `citi-${stories.length + Math.random()}`,
-                        source: 'CitiNewsRoom',
-                        title,
-                        link: link,
-                        image: image || null,
-                        time: display,
-                        timestamp,
-                        section: category
-                    });
+                    if (meta.image) {
+                        image = meta.image;
+                    }
                 }
-            });
+
+                seenLinks.add(link);
+
+                // Specific section from article if available, otherwise generic section
+                let category = $(el).find('.jeg_post_category span a').text().trim();
+                if (!category) category = sec.name;
+
+                // Explicitly skip Entertainment articles even if found in other sections
+                if (category.toLowerCase().includes('entertainment') || link.toLowerCase().includes('/entertainment/')) {
+                    continue;
+                }
+
+                stories.push({
+                    id: `citi-${stories.length + Math.random()}`,
+                    source: 'CitiNewsRoom',
+                    title,
+                    link: link,
+                    image: image || null,
+                    time: display,
+                    timestamp,
+                    section: category
+                });
+            }
         } catch (e) {
             console.error(`CitiNewsRoom ${sec.name} Error:`, e);
         }
-    }));
+    }
 
     return stories;
 }
