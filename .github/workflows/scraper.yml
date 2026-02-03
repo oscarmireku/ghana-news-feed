@@ -10,11 +10,6 @@ on:
     branches:
       - main
 
-# Prevent concurrent runs - cancel old jobs when new one starts
-concurrency:
-  group: news-scraper
-  cancel-in-progress: true
-
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -32,8 +27,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Scraper
+      - name: Run Scraper with Retry
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 12
+          max_attempts: 3
+          retry_wait_seconds: 120
+          command: npx tsx src/scripts/scrape-standalone.ts
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-        run: npx tsx src/scripts/scrape-standalone.ts
