@@ -506,7 +506,10 @@ async function scrapeDailyGuide(): Promise<{ stories: Article[], logs: string[] 
 // ---------------------------------------------------------------------------
 async function scrapeCitiNewsRoom(): Promise<Story[]> {
     const sections = [
-        { name: 'News', url: 'https://citinewsroom.com/news/' },
+        // NOTE: citinewsroom.com/news/ was a static Elementor page (not a category archive)
+        // and only returned stale/mixed articles. category/news/ and breaking-news are proper WP archives.
+        { name: 'News', url: 'https://citinewsroom.com/category/news/' },
+        { name: 'Breaking News', url: 'https://citinewsroom.com/category/breaking-news/' },
         { name: 'Business', url: 'https://citinewsroom.com/category/business/' },
         { name: 'Politics', url: 'https://citinewsroom.com/category/politics/' },
         { name: 'Regional', url: 'https://citinewsroom.com/category/regional-news/' },

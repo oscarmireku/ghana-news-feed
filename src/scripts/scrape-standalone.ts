@@ -728,7 +728,10 @@ const GENERIC_FEEDS = [
 // ---------------------------------------------------------------------------
 export async function scrapeCitiNewsRoom(): Promise<Story[]> {
     const sections = [
-        { name: 'News', url: 'https://citinewsroom.com/news/' },
+        // NOTE: citinewsroom.com/news/ was a static Elementor page (not a category archive)
+        // and only returned stale/mixed articles. category/news/ and breaking-news are proper WP archives.
+        { name: 'News', url: 'https://citinewsroom.com/category/news/' },
+        { name: 'Breaking News', url: 'https://citinewsroom.com/category/breaking-news/' },
         { name: 'Business', url: 'https://citinewsroom.com/category/business/' },
         { name: 'Politics', url: 'https://citinewsroom.com/category/politics/' },
         { name: 'Regional', url: 'https://citinewsroom.com/category/regional-news/' },
@@ -779,17 +782,36 @@ export async function scrapeCitiNewsRoom(): Promise<Story[]> {
                 let dateStr = $(el).find('.jeg_meta_date').text().trim();
                 let { timestamp, display } = parsePublicationDate(dateStr);
 
-                // FIX: If date is missing/Recent, fetch the article page to get the date
-                if ((display === 'Recent' || !dateStr) && link.includes('/2026/')) {
-                    console.log(`[Citi] Missing date for "${title}". Fetching article...`);
-                    const meta = await fetchArticleMetadata(link, 'CitiNewsRoom');
-                    if (meta.timestamp) {
-                        timestamp = meta.timestamp;
-                        display = meta.time || timeAgo(timestamp);
-                        console.log(`[Citi] Found date: ${display}`);
-                    }
-                    if (meta.image) {
-                        image = meta.image;
+                // DISABLED: CitiNewsRoom blocks requests with Imunify360 bot protection
+                // Instead, we rely on the midnight timestamp detection below to use current time as fallback
+                // This prevents bot protection blocks while still capturing articles
+                // if ((display === 'Recent' || !dateStr) && link.includes('/2026/')) {
+                //     console.log(`[Citi] Missing date for "${title}". Fetching article...`);
+                //     const meta = await fetchArticleMetadata(link, 'CitiNewsRoom');
+                //     if (meta.timestamp) {
+                //         timestamp = meta.timestamp;
+                //         display = meta.time || timeAgo(timestamp);
+                //         console.log(`[Citi] Found date: ${display}`);
+                //     }
+                //     if (meta.image) {
+                //         image = meta.image;
+                //     }
+                // }
+
+                // CRITICAL FIX: Detect midnight timestamps which indicate date parsing failures
+                // Midnight timestamps (00:00:00) cause articles to be filtered out by the 4-hour cutoff
+                // Replace with current time to ensure articles are kept
+                if (timestamp > 0) {
+                    const date = new Date(timestamp);
+                    const hours = date.getUTCHours();
+                    const minutes = date.getUTCMinutes();
+                    const seconds = date.getUTCSeconds();
+
+                    // If timestamp is exactly midnight (00:00:00), it's likely a parsing failure
+                    if (hours === 0 && minutes === 0 && seconds === 0) {
+                        console.log(`[Citi] Detected midnight timestamp for "${title.substring(0, 50)}". Using current time as fallback.`);
+                        timestamp = Date.now();
+                        display = 'Recent';
                     }
                 }
 
@@ -1086,9 +1108,12 @@ async function main() {
 
         // Incremental Scraping Check:
         // Use the per-source latest timestamp to filter out old news.
-        // Safety margin: 4 hours (4 * 3600000ms) to allow for clock diffs, republished content, and parsing errors.
+        // Safety margin: 4 hours (4 * 3600000ms) for most sources, 24 hours for CitiNewsRoom
+        // CitiNewsRoom needs a larger buffer due to date parsing issues that result in midnight timestamps
+        const bufferHours = story.source === 'CitiNewsRoom' ? 24 : 4;
+        const bufferMs = bufferHours * 3600000;
         const lastSeen = sourceTimestamps.get(story.source) || 0;
-        if (lastSeen > 0 && story.timestamp > 0 && story.timestamp < (lastSeen - (4 * 3600000))) {
+        if (lastSeen > 0 && story.timestamp > 0 && story.timestamp < (lastSeen - bufferMs)) {
             return false;
         }
 
